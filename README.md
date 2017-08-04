@@ -1,4 +1,4 @@
-#Ponia-OniaPhoton
+# Ponia-OniaPhoton
 
 This package is mean to be run using MINIAOD (2017 version and up)
 
@@ -10,7 +10,7 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 cmsrel CMSSW_9_2_6_patch1
 cd CMSSW_9_2_6_patch1/src/
 cmsenv
-git clone url Ponia/OniaPhoton
+git clone https://github.com/alberto-sanchez/chi-analysis-miniaod.git Ponia/OniaPhoton
 scram b
 
 ```
