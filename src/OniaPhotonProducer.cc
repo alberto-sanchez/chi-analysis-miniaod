@@ -92,7 +92,8 @@ const pat::CompositeCandidate OniaPhotonProducer::makeChiCandidate(const pat::Co
   pat::CompositeCandidate chiCand;
   chiCand.addDaughter(dimuon,"dimuon");
   chiCand.addDaughter(photon,"photon");
-  chiCand.setVertex(dimuon.vertex());
+  const reco::Vertex *ipv = dimuon.userData<reco::Vertex>("commonVertex");
+  chiCand.setVertex(ipv->position());
   reco::Candidate::LorentzVector vChic = dimuon.p4() + photon.p4();
   chiCand.setP4(vChic);
   return chiCand;
