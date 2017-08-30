@@ -399,7 +399,7 @@ void chibRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
            if (refit3S_handle.isValid() && i < refit3S_handle->size()) { j = (refit3S_handle->at(i)).userInt("Index"); }
            if ( j >= 0  && (unsigned int) j == i ) {
               refit3S = refit3S_handle->at(i);
-              rf3S_chi_p4.SetPtEtaPhiM(refit2S.pt(), refit2S.eta(), refit2S.phi(), refit2S.mass());
+              rf3S_chi_p4.SetPtEtaPhiM(refit3S.pt(), refit3S.eta(), refit3S.phi(), refit3S.mass());
               probFit3S = refit3S.userFloat("vProb");
            } else {
               rf3S_chi_p4.SetPtEtaPhiM(chi_cand.pt(), chi_cand.eta(), chi_cand.phi(), invm3S);
