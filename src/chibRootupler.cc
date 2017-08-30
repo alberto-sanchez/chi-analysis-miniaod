@@ -173,13 +173,14 @@ isMC_(iConfig.getParameter < bool > ("isMC"))
        chib_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        chib_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
-    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"genParticles");
+    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
 
     upsilon_tree = fs->make<TTree>("upsTree","Tree of Upsilon");
     upsilon_tree->Branch("mumu_p4",  "TLorentzVector", &mumu_p4);
     upsilon_tree->Branch("muP_p4",   "TLorentzVector", &muP_p4);
     upsilon_tree->Branch("muM_p4",   "TLorentzVector", &muM_p4);
     upsilon_tree->Branch("trigger",  &trigger,         "trigger/i");
+    upsilon_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
     upsilon_tree->Branch("mumu_rank",&mumu_rank,       "mumu_rank/i"); 
 }
 
@@ -237,16 +238,19 @@ void chibRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
       int p_status = (*pruned)[i].status();
       yns_pdgId = 0;
       int foundit = 0;
-      if ( ( p_id == 20443 || p_id == 445 || p_id == 10443) && p_status == 2)  yns_pdgId = 443;
-      else if ( (p_id == 20553 || p_id == 555 || p_id == 10551) && p_status == 2) yns_pdgId = 553;
+      if ( (p_id == 20553 || p_id == 555 || p_id == 10551) && p_status == 2) yns_pdgId = 553;
       if (yns_pdgId > 0) {
          chi_pdgId = p_id;
          foundit++;
          const reco::Candidate * pwave = &(*pruned)[i];
          gen_chi_p4.SetPtEtaPhiM(pwave->pt(),pwave->eta(),pwave->phi(),pwave->mass());
+         if (pwave->mass() > 10.5) { chi_pdgId += 200000; }
+         else { if (pwave->mass() > 10.2) chi_pdgId += 100000; }
          for (size_t j=0; j<pwave->numberOfDaughters(); j++) {
             const reco::Candidate *dau = pwave->daughter(j);
-            if (dau->pdgId() == yns_pdgId && dau->status() == 2) {
+            int d_id = dau->pdgId();
+            if ((d_id == 553 || d_id == 100553 || d_id == 200553 ) && dau->status() == 2) {
+               yns_pdgId = d_id;
                gen_yns_p4.SetPtEtaPhiM(dau->pt(),dau->eta(),dau->phi(),dau->mass());
                uint nmuons = 0;
                for (size_t k=0; k<dau->numberOfDaughters(); k++) {
