@@ -159,13 +159,14 @@ isMC_(iConfig.getParameter < bool > ("isMC"))
        chib_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        chib_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
-    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"genParticles");
+    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
 
     upsilon_tree = fs->make<TTree>("psiTree","Tree of Jpsi");
     upsilon_tree->Branch("mumu_p4",  "TLorentzVector", &mumu_p4);
     upsilon_tree->Branch("muP_p4",   "TLorentzVector", &muP_p4);
     upsilon_tree->Branch("muM_p4",   "TLorentzVector", &muM_p4);
     upsilon_tree->Branch("trigger",  &trigger,         "trigger/i");
+    upsilon_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
     upsilon_tree->Branch("mumu_rank",&mumu_rank,       "mumu_rank/i"); 
 }
 
@@ -215,8 +216,7 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
       int p_status = (*pruned)[i].status();
       yns_pdgId = 0;
       int foundit = 0;
-      if ( ( p_id == 20443 || p_id == 445 || p_id == 10443) && p_status == 2)  yns_pdgId = 443;
-      else if ( (p_id == 20553 || p_id == 555 || p_id == 10551) && p_status == 2) yns_pdgId = 553;
+      if ( ( p_id == 20443 || p_id == 445 || p_id == 10441) && p_status == 2)  yns_pdgId = 443;
       if (yns_pdgId > 0) {
          chi_pdgId = p_id;
          foundit++;
