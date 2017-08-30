@@ -1,14 +1,14 @@
 # Ponia-OniaPhoton
 
-This package is mean to be run using MINIAOD (2017 version and up)
+This package is mean to be run using MINIAOD (2017 version and up, only)
 
 * Setup: (it has being tested on 9_2_x should run in any of the recent cmssw releases)
 
 ```
 export SCRAM_ARCH=slc6_amd64_gcc530
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cmsrel CMSSW_9_2_6_patch1
-cd CMSSW_9_2_6_patch1/src/
+cmsrel CMSSW_9_2_10
+cd CMSSW_9_2_10/src/
 cmsenv
 git clone https://github.com/alberto-sanchez/chi-analysis-miniaod.git Ponia/OniaPhoton
 scram b

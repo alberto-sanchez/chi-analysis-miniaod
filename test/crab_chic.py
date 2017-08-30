@@ -3,6 +3,7 @@ config = config()
 
 myname='rootuple-chic-2017'
 mydata='/Charmonium/Run2017B-PromptReco-v1/MINIAOD'
+myjson='Cert_294927-297723_13TeV_PromptReco_Collisions17_JSON_MuonPhys.txt'
 
 config.General.requestName = myname
 config.General.transferOutputs = True
@@ -16,6 +17,7 @@ config.Data.inputDataset = mydata
 config.Data.inputDBS = 'global'
 config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 5
+config.Data.lumiMask = myjson
 
 config.Data.outLFNDirBase = '/store/user/%s/' % (getUsernameFromSiteDB())
 config.Data.publication = False
