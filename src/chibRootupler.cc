@@ -32,12 +32,12 @@
 class chibRootupler:public edm::EDAnalyzer {
       public:
 	explicit chibRootupler(const edm::ParameterSet &);
-	~chibRootupler() {};
+	~chibRootupler() override {};
 	static void fillDescriptions(edm::ConfigurationDescriptions & descriptions);
         bool isAncestor(const reco::Candidate * ancestor, const reco::Candidate * particle);
 
       private:
-	virtual void analyze(const edm::Event &, const edm::EventSetup &);
+	void analyze(const edm::Event &, const edm::EventSetup &) override;
 
 	std::string file_name;
         edm::EDGetTokenT<pat::CompositeCandidateCollection> chi_;
@@ -303,7 +303,7 @@ void chibRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
          for (int version = 1; version < 19; version++) {
             std::stringstream ss;
             ss << TriggersToTest[i] << "_v" << version;
-            unsigned int bit = TheTriggerNames.triggerIndex(edm::InputTag(ss.str()).label().c_str());
+            unsigned int bit = TheTriggerNames.triggerIndex(edm::InputTag(ss.str()).label());
             if (bit < triggerResults_handle->size() && triggerResults_handle->accept(bit) && !triggerResults_handle->error(bit)) {
                trigger += (1<<i);
                break;
@@ -316,7 +316,7 @@ void chibRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
     rf1S_rank = 0;
     photon_flags = 0;
     // grabbing chi inforamtion
-    if (chi_cand_handle.isValid() && chi_cand_handle->size() > 0) {
+    if (chi_cand_handle.isValid() && !chi_cand_handle->empty()) {
 
        unsigned int csize = chi_cand_handle->size();
        if (bestCandidateOnly_) csize = 1;
@@ -411,7 +411,7 @@ void chibRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
     } //else std::cout << "no valid chi handle" << std::endl;
     
     mumu_rank = 0;
-    if (ups_hand.isValid() && ups_hand->size() > 0) {
+    if (ups_hand.isValid() && !ups_hand->empty()) {
       for (unsigned int i=0; i< ups_hand->size(); i++) {
         pat::CompositeCandidate ups_ = ups_hand->at(i);
         mumu_p4.SetPtEtaPhiM(ups_.pt(), ups_.eta(), ups_.phi(), ups_.mass());

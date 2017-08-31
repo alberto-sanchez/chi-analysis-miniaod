@@ -57,11 +57,11 @@
 class OniaPhotonKinematicFit : public edm::EDProducer {
   public:
     explicit OniaPhotonKinematicFit(const edm::ParameterSet&);
-    ~OniaPhotonKinematicFit() {};
+    ~OniaPhotonKinematicFit() override {};
     static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
   private:
-    virtual void produce(edm::Event&, const edm::EventSetup&);
+    void produce(edm::Event&, const edm::EventSetup&) override;
 
   double upsilon_mass_;
   std::string product_name_;

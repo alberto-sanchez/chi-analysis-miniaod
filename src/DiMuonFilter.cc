@@ -17,10 +17,10 @@
 class DiMuonFilter : public edm::EDProducer {
  public:
   explicit DiMuonFilter(const edm::ParameterSet&);
-  ~DiMuonFilter() {};
+  ~DiMuonFilter() override {};
   UInt_t isTriggerMatched(const pat::CompositeCandidate *);
  private:
-  virtual void produce(edm::Event&, const edm::EventSetup&);
+  void produce(edm::Event&, const edm::EventSetup&) override;
   edm::EDGetTokenT<std::vector<pat::CompositeCandidate>> theOnias_;
   StringCutObjectSelector<reco::Candidate, true> SingleMuonSelection_;
   StringCutObjectSelector<reco::Candidate, true> DiMuonSelection_;
@@ -47,7 +47,7 @@ UInt_t DiMuonFilter::isTriggerMatched(const pat::CompositeCandidate *diMuon_cand
   for (unsigned int iTr = 0; iTr<HLTFilters_.size(); iTr++ ) {
      const pat::TriggerObjectStandAloneCollection mu1HLTMatches = muon1->triggerObjectMatchesByFilter(HLTFilters_[iTr]);
      const pat::TriggerObjectStandAloneCollection mu2HLTMatches = muon2->triggerObjectMatchesByFilter(HLTFilters_[iTr]);
-     if (mu1HLTMatches.size() > 0 && mu2HLTMatches.size() > 0) matched += (1<<iTr); 
+     if (!mu1HLTMatches.empty() && !mu2HLTMatches.empty()) matched += (1<<iTr); 
   }
   return matched;
 }
@@ -57,8 +57,8 @@ void DiMuonFilter::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   std::unique_ptr<pat::CompositeCandidateCollection> mumuOutput(new pat::CompositeCandidateCollection);
   edm::Handle<pat::CompositeCandidateCollection> onias_;
   iEvent.getByToken(theOnias_, onias_);
-  if (onias_.isValid() && onias_->size()>0) {
-    const pat::CompositeCandidate *ionia = 0;
+  if (onias_.isValid() && !onias_->empty()) {
+    const pat::CompositeCandidate *ionia = nullptr;
     for (size_t ii = 0, nn=onias_->size(); ii < nn; ii++ ) {
        ionia = &(onias_->at(ii));
        if (ionia && DiMuonSelection_(*ionia) && 

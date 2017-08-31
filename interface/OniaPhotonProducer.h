@@ -34,8 +34,8 @@ class OniaPhotonProducer : public edm::EDProducer {
  
  private:
 
-  virtual void produce(edm::Event& event, const edm::EventSetup& esetup);  
-  virtual void endJob();
+  void produce(edm::Event& event, const edm::EventSetup& esetup) override;  
+  void endJob() override;
 
   edm::EDGetTokenT<pat::CompositeCandidateCollection> dimuon_Label;
   edm::EDGetTokenT<pat::CompositeCandidateCollection> photon_Label;
