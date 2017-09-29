@@ -19,16 +19,18 @@ process.source = cms.Source("PoolSource",fileNames = cms.untracked.vstring(input
 process.TFileService = cms.Service("TFileService",fileName = cms.string(ouput_filename))
 process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(False))
 
+process.load("Ponia.OniaPhoton.slimmedMuonsTriggerMatcher2017_cfi")
+
 # In MiniAOD, the PATMuons are already present. We just need to run Onia2MuMu, with a selection of muons.
 process.oniaSelectedMuons = cms.EDFilter('PATMuonSelector',
-   src = cms.InputTag('slimmedMuons'),
+   src = cms.InputTag('slimmedMuonsWithTrigger'),
    cut = cms.string('muonID(\"TMOneStationTight\")'
                     ' && abs(innerTrack.dxy) < 0.3'
                     ' && abs(innerTrack.dz)  < 20.'
                     ' && innerTrack.hitPattern.trackerLayersWithMeasurement > 5'
                     ' && innerTrack.hitPattern.pixelLayersWithMeasurement > 0'
                     ' && innerTrack.quality(\"highPurity\")'
-                    ' && (abs(eta) <= 2.4 && pt > 3.5)'
+                    ' && (abs(eta) <= 1.4 && pt > 4.)'
    ),
    filter = cms.bool(True)
 )
@@ -37,7 +39,9 @@ process.load("HeavyFlavorAnalysis.Onia2MuMu.onia2MuMuPAT_cfi")
 process.onia2MuMuPAT.muons=cms.InputTag('oniaSelectedMuons')
 process.onia2MuMuPAT.primaryVertexTag=cms.InputTag('offlineSlimmedPrimaryVertices')
 process.onia2MuMuPAT.beamSpotTag=cms.InputTag('offlineBeamSpot')
-process.onia2MuMuPAT.dimuonSelection=cms.string("0.2 < mass && abs(daughter('muon1').innerTrack.dz - daughter('muon2').innerTrack.dz) < 25")
+process.onia2MuMuPAT.higherPuritySelection=cms.string("")
+process.onia2MuMuPAT.lowerPuritySelection=cms.string("")
+process.onia2MuMuPAT.dimuonSelection=cms.string("8.5 < mass && mass < 11.5")
 process.onia2MuMuPAT.addMCTruth = cms.bool(False)
 
 process.triggerSelection = cms.EDFilter("TriggerResultsFilter",
@@ -52,8 +56,8 @@ process.triggerSelection = cms.EDFilter("TriggerResultsFilter",
 process.Onia2MuMuFiltered = cms.EDProducer('DiMuonFilter',
       OniaTag             = cms.InputTag("onia2MuMuPAT"),
       singlemuonSelection = cms.string(""),
-      dimuonSelection     = cms.string("8.5 < mass && mass < 11.5 && pt > 10. && abs(y) < 1.2 && charge==0 && userFloat('vProb') > 0.01"),
-      do_trigger_match    = cms.bool(False),    #disabled temporary
+      dimuonSelection     = cms.string("8.6 < mass && mass < 11.4 && pt > 10. && abs(y) < 1.2 && charge==0 && userFloat('vProb') > 0.01")
+      do_trigger_match    = cms.bool(True),
       HLTFilters          = cms.vstring(
                 'hltDisplacedmumuFilterDimuon10UpsilonBarrelnoCow',
                 'hltDisplacedmumuFilterDimuon12Upsilons'
@@ -93,9 +97,9 @@ process.chiFitter3S = cms.EDProducer('OniaPhotonKinematicFit',
                           product_name = cms.string("y3S")
                          )
 
-
 process.chiSequence = cms.Sequence(
                                    process.triggerSelection *
+				   process.slimmedMuonsWithTriggerSequence *
 				   process.oniaSelectedMuons *
 				   process.onia2MuMuPAT *
 				   process.Onia2MuMuFiltered *
