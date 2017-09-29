@@ -23,3 +23,6 @@ cmsRun Ponia/OniaPhoton/test/run-chib-miniaod.py (for chib reconstruction)
 
 In test directory you can find other examples to run over data and mc.
 
+Note: Be aware that data/mc previous to 2017, can be converted to MINIAOD
+following instructions in cmssw pr #19304 (https://github.com/cms-sw/cmssw/pull/19304)
+
