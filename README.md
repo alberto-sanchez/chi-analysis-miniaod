@@ -7,8 +7,8 @@ This package is mean to be run using MINIAOD (2017 version and up, only)
 ```
 export SCRAM_ARCH=slc6_amd64_gcc530
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cmsrel CMSSW_9_2_10
-cd CMSSW_9_2_10/src/
+cmsrel CMSSW_9_2_12_patch1
+cd CMSSW_9_2_12_patch1/src/
 cmsenv
 git clone https://github.com/alberto-sanchez/chi-analysis-miniaod.git Ponia/OniaPhoton
 scram b

@@ -56,7 +56,7 @@ process.triggerSelection = cms.EDFilter("TriggerResultsFilter",
 process.Onia2MuMuFiltered = cms.EDProducer('DiMuonFilter',
       OniaTag             = cms.InputTag("onia2MuMuPAT"),
       singlemuonSelection = cms.string(""),
-      dimuonSelection     = cms.string("8.6 < mass && mass < 11.4 && pt > 10. && abs(y) < 1.2 && charge==0 && userFloat('vProb') > 0.01")
+      dimuonSelection     = cms.string("8.6 < mass && mass < 11.4 && pt > 10. && abs(y) < 1.2 && charge==0 && userFloat('vProb') > 0.01"),
       do_trigger_match    = cms.bool(True),
       HLTFilters          = cms.vstring(
                 'hltDisplacedmumuFilterDimuon10UpsilonBarrelnoCow',
