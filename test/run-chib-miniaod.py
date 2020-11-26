@@ -118,7 +118,14 @@ process.rootuple = cms.EDAnalyzer('chibRootupler',
 			  refit3S  = cms.InputTag("chiFitter3S","y3S"),
                           primaryVertices = cms.InputTag("offlineSlimmedPrimaryVertices"),
                           TriggerResults  = cms.InputTag("TriggerResults", "", "HLT"),
-                          isMC = cms.bool(False)
+                          isMC = cms.bool(False),
+                          FilterNames = cms.vstring(
+                                                    'HLT_Dimuon8_Upsilon_Barrel',
+                                                    'HLT_Dimuon13_Upsilon',
+                                                    'HLT_Dimuon10_Upsilon_Barrel_Seagulls',
+                                                    'HLT_Dimuon12_Upsilon_eta1p5',
+                                                    'HLT_Dimuon12_Upsilon_y1p4'
+                                                   )
                          )
 
 process.p = cms.Path(process.chiSequence*process.rootuple)
