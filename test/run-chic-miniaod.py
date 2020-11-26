@@ -59,9 +59,9 @@ process.Onia2MuMuFiltered = cms.EDProducer('DiMuonFilter',
       dimuonSelection     = cms.string("2.9 < mass && mass < 3.3 && pt > 20. && abs(y) < 1.2 && charge==0 && userFloat('vProb') > 0.01"),
       do_trigger_match    = cms.bool(True),
       HLTFilters          = cms.vstring(
-                'hltDisplacedmumuFilterDimuon20JpsiBarrelnoCow',
-                'hltDisplacedmumuFilterDimuon25Jpsis'
-                          ),
+                                        'hltDisplacedmumuFilterDimuon20JpsiBarrelnoCow',
+                                        'hltDisplacedmumuFilterDimuon25Jpsis'
+                                       ),
 )
 
 process.DiMuonCounter = cms.EDFilter('CandViewCountFilter',
@@ -102,7 +102,15 @@ process.rootuple = cms.EDAnalyzer('chicRootupler',
                           refit1S  = cms.InputTag("chiFitter1S","y1S"),
                           primaryVertices = cms.InputTag("offlineSlimmedPrimaryVertices"),
                           TriggerResults  = cms.InputTag("TriggerResults", "", "HLT"),
-                          isMC = cms.bool(False)
+                          isMC = cms.bool(False),
+                          FilterNames = cms.vstring(
+                                                    'HLT_Dimuon10_Jpsi_Barrel',
+                                                    'HLT_Dimuon16_Jpsi',
+                                                    'HLT_Dimuon20_Jpsi',
+                                                    'HLT_Dimuon20_Jpsi_Barrel_Seagulls',
+                                                    'HLT_Dimuon25_Jpsi',
+                                                    'HLT_DoubleMu4_JpsiTrk_Displaced'
+                                                   )
                          )
 
 process.p = cms.Path(process.chiSequence*process.rootuple)
