@@ -375,6 +375,7 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
         muM_p4.SetPtEtaPhiM(vM.pt(), vM.eta(), vM.phi(), vM.mass());
         upsilon_tree->Fill();
         mumu_rank++;
+	break;  // just one combination per event, the bestonly
       }
     } 
 }
