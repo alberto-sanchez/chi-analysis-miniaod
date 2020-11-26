@@ -34,10 +34,11 @@ class chicRootupler:public edm::EDAnalyzer {
 	explicit chicRootupler(const edm::ParameterSet &);
 	~chicRootupler() override {};
 	static void fillDescriptions(edm::ConfigurationDescriptions & descriptions);
-        bool isAncestor(const reco::Candidate * ancestor, const reco::Candidate * particle);
 
       private:
 	void analyze(const edm::Event &, const edm::EventSetup &) override;
+	bool isAncestor(const reco::Candidate * ancestor, const reco::Candidate * particle);
+	UInt_t getTriggerBits(const edm::Event &);
 
 	std::string file_name;
         edm::EDGetTokenT<pat::CompositeCandidateCollection> chi_;
@@ -47,6 +48,7 @@ class chicRootupler:public edm::EDAnalyzer {
         edm::EDGetTokenT<edm::TriggerResults>               triggerResults_;
 
 	bool isMC_;
+        std::vector<std::string> FilterNames_;
 
 	UInt_t    run;
         ULong64_t event;
@@ -115,7 +117,8 @@ ups_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::Inp
 refit1_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("refit1S"))),
 primaryVertices_(consumes<reco::VertexCollection>(iConfig.getParameter < edm::InputTag > ("primaryVertices"))),
 triggerResults_(consumes<edm::TriggerResults>(iConfig.getParameter < edm::InputTag > ("TriggerResults"))), 
-isMC_(iConfig.getParameter < bool > ("isMC"))
+isMC_(iConfig.getParameter < bool > ("isMC")),
+FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
 {
     edm::Service < TFileService > fs;
     chib_tree = fs->make < TTree > ("chiTree", "Tree of chic");
@@ -175,6 +178,27 @@ bool chicRootupler::isAncestor(const reco::Candidate* ancestor, const reco::Cand
    if (ancestor == particle ) return true;
    if (particle->numberOfMothers() && isAncestor(ancestor,particle->mother(0))) return true;
    return false;
+}
+
+UInt_t chicRootupler::getTriggerBits(const edm::Event& iEvent ) {
+   UInt_t trigger = 0;
+   edm::Handle<edm::TriggerResults> triggerresults;
+   iEvent.getByToken(triggerResults_, triggerresults);
+   if (triggerresults.isValid()) {
+      const edm::TriggerNames & TheTriggerNames = iEvent.triggerNames(*triggerresults);
+      for (unsigned int i = 0; i < FilterNames_.size(); i++) {
+         for (int version = 1; version < 99; version++) {
+            std::stringstream ss;
+            ss << FilterNames_[i] << "_v" << version;
+            unsigned int bit = TheTriggerNames.triggerIndex(edm::InputTag(ss.str()).label());
+            if (bit < triggerresults->size() && triggerresults->accept(bit) && !triggerresults->error(bit)) {
+               trigger += (1<<i);
+               break;
+            }
+         }
+      }
+   } else std::cout << "MMGrootupler::getTriggerBits: *** NO triggerResults found *** " << iEvent.id().run() << "," << iEvent.id().event() << std::endl;
+   return trigger;
 }
 
 // ------------ method called for each event  ------------
@@ -258,33 +282,7 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
    if (!chi_pdgId)  std::cout << "Rootupler does not found the given decay " << run << "," << event << std::endl;
   }
 
-   //grab Trigger informations
-   // save it in variable trigger, trigger is an int between 0 and 15, in binary it is:
-   // (pass 11)(pass 8)(pass 7)(pass 5)
-   // es. 11 = pass 5, 7 and 11
-   // es. 4 = pass only 8
-
-   trigger = 0;
-   if (triggerResults_handle.isValid()) {
-      const edm::TriggerNames & TheTriggerNames = iEvent.triggerNames(*triggerResults_handle);
-      unsigned int NTRIGGERS = 7;
-      std::string TriggersToTest[NTRIGGERS] = {
-	      "HLT_Dimuon20_Jpsi_Barrel_Seagulls","HLT_Dimuon25_Jpsi",
-	      "HLT_Dimuon10_PsiPrime_Barrel_Seagulls","HLT_Dimuon18_PsiPrime",
-	      "HLT_Dimuon10_Upsilon_Barrel_Seagulls","HLT_Dimuon12_Upsilon_eta1p5","HLT_Dimuon14_Phi_Barrel_Seagulls"};
-       
-      for (unsigned int i = 0; i < NTRIGGERS; i++) {
-         for (int version = 1; version < 19; version++) {
-            std::stringstream ss;
-            ss << TriggersToTest[i] << "_v" << version;
-            unsigned int bit = TheTriggerNames.triggerIndex(edm::InputTag(ss.str()).label());
-            if (bit < triggerResults_handle->size() && triggerResults_handle->accept(bit) && !triggerResults_handle->error(bit)) {
-               trigger += (1<<i);
-               break;
-            }
-         }
-      }
-    } else std::cout << "*** NO triggerResults found " << iEvent.id().run() << "," << iEvent.id().event() << std::endl;
+    trigger = getTriggerBits(iEvent);   //grab Trigger informations
 
     bool bestCandidateOnly_ = false;
     rf1S_rank = 0;
