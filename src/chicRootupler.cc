@@ -62,7 +62,7 @@ class chicRootupler:public edm::EDAnalyzer {
 
 	TLorentzVector rf1S_chi_p4;
 	Double_t invm1S;
-        Double_t probFit1S;
+        Double_t probFit1S,vProb;
 	Double_t y1S_nsigma;
 
 	Double_t ele_lowerPt_pt;
@@ -141,6 +141,7 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chib_tree->Branch("ele_lowerPt_pt",  &ele_lowerPt_pt,  "ele_lowerPt_pt/D");
     chib_tree->Branch("ele_higherPt_pt", &ele_higherPt_pt, "ele_higherPt_pt/D");
 
+    chib_tree->Branch("vProb",        &vProb,        "vProb/D");
     chib_tree->Branch("ctpv",         &ctpv,         "ctpv/D");
     chib_tree->Branch("ctpv_error",   &ctpv_error,   "ctpv_error/D");
     chib_tree->Branch("conv_vertex",  &conv_vertex,  "conv_vertex/D");
@@ -162,15 +163,32 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
        chib_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        chib_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
-    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
 
     upsilon_tree = fs->make<TTree>("psiTree","Tree of Jpsi");
-    upsilon_tree->Branch("mumu_p4",  "TLorentzVector", &mumu_p4);
-    upsilon_tree->Branch("muP_p4",   "TLorentzVector", &muP_p4);
-    upsilon_tree->Branch("muM_p4",   "TLorentzVector", &muM_p4);
-    upsilon_tree->Branch("trigger",  &trigger,         "trigger/i");
+    upsilon_tree->Branch("run",       &run,             "run/i");
+    upsilon_tree->Branch("event",     &event,           "event/l");
+    upsilon_tree->Branch("lumiblock", &lumiblock,       "lumiblock/i");
+    upsilon_tree->Branch("mumu_p4",   "TLorentzVector", &mumu_p4);
+    upsilon_tree->Branch("muP_p4",    "TLorentzVector", &muP_p4);
+    upsilon_tree->Branch("muM_p4",    "TLorentzVector", &muM_p4);
+    upsilon_tree->Branch("vProb",     &vProb,           "vProb/D");
+    upsilon_tree->Branch("ctpv",      &ctpv,            "ctpv/D");
+    upsilon_tree->Branch("ctpv_error",&ctpv_error,      "ctpv_error/D");
+    upsilon_tree->Branch("trigger",   &trigger,         "trigger/i");
     upsilon_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
-    upsilon_tree->Branch("mumu_rank",&mumu_rank,       "mumu_rank/i"); 
+    upsilon_tree->Branch("mumu_rank", &mumu_rank,       "mumu_rank/i"); 
+    if (isMC_) {
+       upsilon_tree->Branch("chi_pdgId",     &chi_pdgId,        "chi_pdgId/I");
+       upsilon_tree->Branch("yns_pdgId",     &yns_pdgId,        "yns_pdgId/I");
+       upsilon_tree->Branch("gen_chi_p4",    "TLorentzVector",  &gen_chi_p4);
+       upsilon_tree->Branch("gen_yns_p4",    "TLorentzVector",  &gen_yns_p4);
+       upsilon_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
+       upsilon_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
+       upsilon_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
+       upsilon_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
+    }
+    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
+
 }
 
 //Check recursively if any ancestor of particle is the given one
@@ -327,6 +345,7 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
 	      ele_lowerPt_pt = ele1_pt;
 	   }
 
+           vProb = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("vProb");
 	   ctpv = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("ppdlPV");
 	   ctpv_error = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("ppdlErrPV");
 	   photon_flags = (UInt_t) dynamic_cast<const pat::CompositeCandidate *>(chi_cand.daughter("photon"))->userInt("flags");
@@ -351,7 +370,7 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
 	      probFit1S = refit1S.userFloat("vProb");
 	   } else {
 	      rf1S_chi_p4.SetPtEtaPhiM(chi_cand.pt(), chi_cand.eta(), chi_cand.phi(), invm1S);
-	      probFit1S = 0;
+	      probFit1S = -1;
 	   }	// if rf1S is valid
 	   chib_tree->Fill();
            rf1S_rank++;
@@ -363,6 +382,9 @@ void chicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & i
       for (unsigned int i=0; i< ups_hand->size(); i++) {
         pat::CompositeCandidate ups_ = ups_hand->at(i);
         mumu_p4.SetPtEtaPhiM(ups_.pt(), ups_.eta(), ups_.phi(), ups_.mass());
+	ctpv = ups_.userFloat("ppdlPV");
+	ctpv_error = ups_.userFloat("ppdlErrPV");
+        vProb = ups_.userFloat("vProb");
 
         reco::Candidate::LorentzVector vP = ups_.daughter("muon1")->p4();
         reco::Candidate::LorentzVector vM = ups_.daughter("muon2")->p4();
