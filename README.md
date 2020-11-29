@@ -18,7 +18,7 @@ scram b
 * Run: (use your favorite input sample)
 
 ```
-cmsRun Ponia/OniaPhoton/test/test/run_chic_hi.py (for chic reconstruction)
+cmsRun Ponia/OniaPhoton/test/run_chic_hi.py (for chic reconstruction)
 ```
 
 In test directory you may find other examples to run over data and mc, as well as some crab cfgs
