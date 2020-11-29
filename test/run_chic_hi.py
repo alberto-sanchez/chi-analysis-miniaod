@@ -147,7 +147,7 @@ process.chiSequence = cms.Sequence(
    process.chiFitter1S
 )
 
-process.rootuple = cms.EDAnalyzer('chicRootupler',
+process.rootuple = cms.EDAnalyzer('HIchicRootupler',
                           chi_cand = cms.InputTag("chiProducer"),
                           ups_cand = cms.InputTag("Onia2MuMuFiltered"),
                           refit1S  = cms.InputTag("chiFitter1S","y1S"),
