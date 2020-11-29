@@ -67,8 +67,8 @@ class HIchicRootupler:public edm::EDAnalyzer {
 
 	Double_t ele_lowerPt_pt;
 	Double_t ele_higherPt_pt;
-	Double_t ctpv;
-	Double_t ctpv_error;
+	Double_t ctpv, ctpv_error;
+	Double_t rf1S_ctpv, rf1S_ctpv_error;
 	Double_t conv_vertex;
 	Double_t dz;
 
@@ -145,6 +145,8 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chib_tree->Branch("vProb",        &vProb,        "vProb/D");
     chib_tree->Branch("ctpv",         &ctpv,         "ctpv/D");
     chib_tree->Branch("ctpv_error",   &ctpv_error,   "ctpv_error/D");
+    chib_tree->Branch("rf1S_ctpv",      &rf1S_ctpv,      "rf1S_ctpv/D");
+    chib_tree->Branch("rf1S_ctpv_error",&rf1S_ctpv_error,"rf1S_ctpv_error/D");
     chib_tree->Branch("conv_vertex",  &conv_vertex,  "conv_vertex/D");
     chib_tree->Branch("dz",           &dz,           "dz/D");
 
@@ -383,6 +385,8 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
 	      refit1S = refit1S_handle->at(i);
 	      rf1S_chi_p4.SetPtEtaPhiM(refit1S.pt(), refit1S.eta(), refit1S.phi(), refit1S.mass());
 	      probFit1S = refit1S.userFloat("vProb");
+              rf1S_ctpv = refit1S.userFloat("ctauPV");
+              rf1S_ctpv_error = refit1S.userFloat("ctauErrPV");
 	   } else {
 	      rf1S_chi_p4.SetPtEtaPhiM(chi_cand.pt(), chi_cand.eta(), chi_cand.phi(), invm1S);
 	      probFit1S = -1;

@@ -46,6 +46,11 @@
 #include "RecoVertex/KinematicFitPrimitives/interface/KinematicParticle.h"
 #include "RecoVertex/KinematicFitPrimitives/interface/RefCountedKinematicParticle.h"
 #include "RecoVertex/KinematicFitPrimitives/interface/TransientTrackKinematicParticle.h"
+#include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "RecoVertex/VertexTools/interface/VertexDistanceXY.h"
+#include "TMath.h"
+#include "Math/VectorUtil.h"
+#include "TVector3.h"
 
 #include <boost/foreach.hpp>
 #include <string>
@@ -112,6 +117,7 @@ void OniaPhotonKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup& 
     const reco::Track tk1=*(dynamic_cast<const pat::CompositeCandidate*>(chiCand->daughter("photon"))->userData<reco::Track>("track1"));
     convTracks.push_back(tk0);
     convTracks.push_back(tk1);
+    const reco::Vertex thePrimaryV=*(dynamic_cast<const pat::CompositeCandidate*>(chiCand->daughter("dimuon"))->userData<reco::Vertex>("PVwithmuons"));
 
     std::vector<reco::TransientTrack> MuMuTT;
     MuMuTT.push_back((*theB).build(&JpsiTk[0]));
@@ -198,6 +204,29 @@ void OniaPhotonKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup& 
 	    pat::CompositeCandidate patChib(recoChib);
             patChib.addUserFloat("vProb",ChiBVtxP_fit);
             patChib.addUserInt("Index",indexConversion);  // this also holds the index of the current chiCand
+
+            // lifetime using PV
+            TVector3 vtx;
+            TVector3 pvtx;
+            VertexDistanceXY vdistXY;
+            reco::Vertex myVertex = *ChiBDecayVertex;
+
+            vtx.SetXYZ(ChiBVtxX_fit, ChiBVtxY_fit, 0);
+            pvtx.SetXYZ(thePrimaryV.position().x(), thePrimaryV.position().y(), 0);
+            TVector3 pperp(ChiBPx_fit, ChiBPy_fit, 0);
+            AlgebraicVector3 vpperp(pperp.x(), pperp.y(), 0);
+
+            TVector3 vdiff = vtx - pvtx;
+            double cosAlpha = vdiff.Dot(pperp) / (vdiff.Perp() * pperp.Perp());
+            Measurement1D distXY = vdistXY.distance(myVertex, thePrimaryV);
+            double ctauPV = distXY.value() * cosAlpha * ChiBM_fit / pperp.Perp();
+            GlobalError v1e = myVertex.error();
+            GlobalError v2e = thePrimaryV.error();
+            AlgebraicSymMatrix33 vXYe = v1e.matrix() + v2e.matrix();
+            double ctauErrPV = sqrt(ROOT::Math::Similarity(vpperp, vXYe)) * ChiBM_fit / (pperp.Perp2());
+            patChib.addUserFloat("ctauPV",ctauPV);
+            patChib.addUserFloat("ctauErrPV",ctauErrPV);
+            patChib.addUserFloat("cosAlpha",cosAlpha);
 
             //get first muon
             bool child = ChiBTree->movePointerToTheFirstChild();
