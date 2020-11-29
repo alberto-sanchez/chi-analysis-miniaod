@@ -148,8 +148,8 @@ process.chiSequence = cms.Sequence(
 )
 
 process.rootuple = cms.EDAnalyzer('HIchicRootupler',
-                          chi_cand = cms.InputTag("chiProducer"),
-                          ups_cand = cms.InputTag("Onia2MuMuFiltered"),
+                          chic_cand = cms.InputTag("chiProducer"),
+                          psi_cand = cms.InputTag("Onia2MuMuFiltered"),
                           refit1S  = cms.InputTag("chiFitter1S","y1S"),
                           primaryVertices = cms.InputTag("offlinePrimaryVertices"),
                           TriggerResults  = cms.InputTag("TriggerResults", "", "HLT"),

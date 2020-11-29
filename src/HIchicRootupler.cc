@@ -1,33 +1,31 @@
+// rootupler for AOD (the information on the associate tracks of the PV) is store different in other formats
+
 #include <memory>
 
-// user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
-
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
-
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
-
 #include "FWCore/ServiceRegistry/interface/Service.h"
+#include "FWCore/Common/interface/TriggerNames.h"
+
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 
 #include "DataFormats/PatCandidates/interface/CompositeCandidate.h"
 #include "DataFormats/PatCandidates/interface/PackedGenParticle.h"
 #include "DataFormats/Candidate/interface/Candidate.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
-#include <DataFormats/PatCandidates/interface/UserData.h> 
+#include "DataFormats/PatCandidates/interface/UserData.h"
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
 
 #include "TLorentzVector.h"
 #include "TVector3.h"
 #include "TTree.h"
 #include <vector>
 #include <sstream>
-
-#include "DataFormats/VertexReco/interface/Vertex.h"
-#include "DataFormats/Common/interface/TriggerResults.h"
-#include "FWCore/Common/interface/TriggerNames.h"
 
 class HIchicRootupler:public edm::EDAnalyzer {
       public:
@@ -41,8 +39,8 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	UInt_t getTriggerBits(const edm::Event &);
 
 	std::string file_name;
-        edm::EDGetTokenT<pat::CompositeCandidateCollection> chi_;
-        edm::EDGetTokenT<pat::CompositeCandidateCollection> ups_;
+        edm::EDGetTokenT<pat::CompositeCandidateCollection> chic_;
+        edm::EDGetTokenT<pat::CompositeCandidateCollection> psi_;
         edm::EDGetTokenT<pat::CompositeCandidateCollection> refit1_;
         edm::EDGetTokenT<reco::VertexCollection>            primaryVertices_;
         edm::EDGetTokenT<edm::TriggerResults>               triggerResults_;
@@ -54,15 +52,15 @@ class HIchicRootupler:public edm::EDAnalyzer {
         ULong64_t event;
         UInt_t    lumiblock;
 
-	TLorentzVector chi_p4;
+	TLorentzVector chic_p4;
 	TLorentzVector dimuon_p4;
 	TLorentzVector muonP_p4;
 	TLorentzVector muonM_p4;
 	TLorentzVector photon_p4;
 
-	TLorentzVector rf1S_chi_p4;
+	TLorentzVector rf1S_chic_p4;
 	Double_t invm1S;
-        Double_t probFit1S,vProb;
+        Double_t rf1S_vProb,vProb;
 	Double_t y1S_nsigma;
 
 	Double_t ele_lowerPt_pt;
@@ -78,12 +76,12 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	UInt_t rf1S_rank;
         UInt_t nTrk_Vtx_Q;
 
-	TTree *chib_tree;
+	TTree *chic_tree;
 
-	Int_t chi_pdgId;
-	Int_t yns_pdgId;
-	TLorentzVector gen_chi_p4;
-	TLorentzVector gen_yns_p4;
+	Int_t chic_pdgId;
+	Int_t psi_pdgId;
+	TLorentzVector gen_chic_p4;
+	TLorentzVector gen_psi_p4;
         TLorentzVector gen_dimuon_p4;
 	TLorentzVector gen_photon_p4;
 	TLorentzVector gen_muonP_p4;
@@ -91,7 +89,7 @@ class HIchicRootupler:public edm::EDAnalyzer {
 
         edm::EDGetTokenT<reco::GenParticleCollection> genCands_;
 
-        TTree *upsilon_tree;
+        TTree *psi_tree;
         TLorentzVector mumu_p4, muP_p4, muM_p4;
         UInt_t mumu_rank;
 
@@ -113,8 +111,8 @@ static const double Y_sig_par_B = 56.3;
 static const double Y_sig_par_C = -20.77;
 
 HIchicRootupler::HIchicRootupler(const edm::ParameterSet & iConfig): 
-chi_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("chi_cand"))),
-ups_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("ups_cand"))),
+chic_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("chic_cand"))),
+psi_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("psi_cand"))),
 refit1_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("refit1S"))),
 primaryVertices_(consumes<reco::VertexCollection>(iConfig.getParameter < edm::InputTag > ("primaryVertices"))),
 triggerResults_(consumes<edm::TriggerResults>(iConfig.getParameter < edm::InputTag > ("TriggerResults"))), 
@@ -122,74 +120,75 @@ isMC_(iConfig.getParameter < bool > ("isMC")),
 FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
 {
     edm::Service < TFileService > fs;
-    chib_tree = fs->make < TTree > ("chiTree", "Tree of chic");
+    chic_tree = fs->make < TTree > ("chicTree", "Tree of mumugamma");
 
-    chib_tree->Branch("run",      &run,      "run/i");
-    chib_tree->Branch("event",    &event,    "event/l");
-    chib_tree->Branch("lumiblock",&lumiblock,"lumiblock/i");
+    chic_tree->Branch("run",      &run,      "run/i");
+    chic_tree->Branch("event",    &event,    "event/l");
+    chic_tree->Branch("lumiblock",&lumiblock,"lumiblock/i");
 
-    chib_tree->Branch("chi_p4",    "TLorentzVector", &chi_p4);
-    chib_tree->Branch("dimuon_p4", "TLorentzVector", &dimuon_p4);
-    chib_tree->Branch("muonP_p4",  "TLorentzVector", &muonP_p4);
-    chib_tree->Branch("muonM_p4",  "TLorentzVector", &muonM_p4);
-    chib_tree->Branch("photon_p4", "TLorentzVector", &photon_p4);
+    chic_tree->Branch("chic_p4",   "TLorentzVector", &chic_p4);
+    chic_tree->Branch("dimuon_p4", "TLorentzVector", &dimuon_p4);
+    chic_tree->Branch("muonP_p4",  "TLorentzVector", &muonP_p4);
+    chic_tree->Branch("muonM_p4",  "TLorentzVector", &muonM_p4);
+    chic_tree->Branch("photon_p4", "TLorentzVector", &photon_p4);
 
-    chib_tree->Branch("rf1S_chi_p4", "TLorentzVector", &rf1S_chi_p4);
-    chib_tree->Branch("invm1S",      &invm1S,          "invm1S/D");
-    chib_tree->Branch("probFit1S",   &probFit1S,       "probFit1S/D");
-    chib_tree->Branch("y1S_nsigma",  &y1S_nsigma,      "y1S_nsigma/D");
+    chic_tree->Branch("rf1S_chic_p4", "TLorentzVector", &rf1S_chic_p4);
+    chic_tree->Branch("invm1S",       &invm1S,          "invm1S/D");
+    chic_tree->Branch("rf1S_vProb",   &rf1S_vProb,      "rf1S_vProb/D");
+    chic_tree->Branch("y1S_nsigma",   &y1S_nsigma,      "y1S_nsigma/D");
 
-    chib_tree->Branch("ele_lowerPt_pt",  &ele_lowerPt_pt,  "ele_lowerPt_pt/D");
-    chib_tree->Branch("ele_higherPt_pt", &ele_higherPt_pt, "ele_higherPt_pt/D");
+    chic_tree->Branch("ele_lowerPt_pt",  &ele_lowerPt_pt,  "ele_lowerPt_pt/D");
+    chic_tree->Branch("ele_higherPt_pt", &ele_higherPt_pt, "ele_higherPt_pt/D");
 
-    chib_tree->Branch("vProb",        &vProb,        "vProb/D");
-    chib_tree->Branch("ctpv",         &ctpv,         "ctpv/D");
-    chib_tree->Branch("ctpv_error",   &ctpv_error,   "ctpv_error/D");
-    chib_tree->Branch("rf1S_ctpv",      &rf1S_ctpv,      "rf1S_ctpv/D");
-    chib_tree->Branch("rf1S_ctpv_error",&rf1S_ctpv_error,"rf1S_ctpv_error/D");
-    chib_tree->Branch("conv_vertex",  &conv_vertex,  "conv_vertex/D");
-    chib_tree->Branch("dz",           &dz,           "dz/D");
+    chic_tree->Branch("vProb",          &vProb,          "vProb/D");
+    chic_tree->Branch("ctpv",           &ctpv,           "ctpv/D");
+    chic_tree->Branch("ctpv_error",     &ctpv_error,     "ctpv_error/D");
+    chic_tree->Branch("rf1S_ctpv",      &rf1S_ctpv,      "rf1S_ctpv/D");
+    chic_tree->Branch("rf1S_ctpv_error",&rf1S_ctpv_error,"rf1S_ctpv_error/D");
+    chic_tree->Branch("conv_vertex",    &conv_vertex,    "conv_vertex/D");
+    chic_tree->Branch("dz",             &dz,             "dz/D");
 
-    chib_tree->Branch("photon_flags", &photon_flags, "photon_flags/i");
+    chic_tree->Branch("photon_flags",   &photon_flags,   "photon_flags/i");
 
-    chib_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
-    chib_tree->Branch("trigger",            &trigger,            "trigger/i");
-    chib_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
-    chib_tree->Branch("rf1S_rank",          &rf1S_rank,          "rf1S_rank/i");
+    chic_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
+    chic_tree->Branch("trigger",            &trigger,            "trigger/i");
+    chic_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
+    chic_tree->Branch("rf1S_rank",          &rf1S_rank,          "rf1S_rank/i");
 
     if (isMC_) {
-       chib_tree->Branch("chi_pdgId",     &chi_pdgId,        "chi_pdgId/I");
-       chib_tree->Branch("yns_pdgId",     &yns_pdgId,        "yns_pdgId/I");
-       chib_tree->Branch("gen_chi_p4",    "TLorentzVector",  &gen_chi_p4);
-       chib_tree->Branch("gen_yns_p4",    "TLorentzVector",  &gen_yns_p4);
-       chib_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
-       chib_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
-       chib_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
-       chib_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
+       chic_tree->Branch("chic_pdgId",    &chic_pdgId,       "chic_pdgId/I");
+       chic_tree->Branch("psi_pdgId",     &psi_pdgId,        "psi_pdgId/I");
+       chic_tree->Branch("gen_chic_p4",   "TLorentzVector",  &gen_chic_p4);
+       chic_tree->Branch("gen_psi_p4",    "TLorentzVector",  &gen_psi_p4);
+       chic_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
+       chic_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
+       chic_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
+       chic_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
 
-    upsilon_tree = fs->make<TTree>("psiTree","Tree of Jpsi");
-    upsilon_tree->Branch("run",       &run,             "run/i");
-    upsilon_tree->Branch("event",     &event,           "event/l");
-    upsilon_tree->Branch("lumiblock", &lumiblock,       "lumiblock/i");
-    upsilon_tree->Branch("mumu_p4",   "TLorentzVector", &mumu_p4);
-    upsilon_tree->Branch("muP_p4",    "TLorentzVector", &muP_p4);
-    upsilon_tree->Branch("muM_p4",    "TLorentzVector", &muM_p4);
-    upsilon_tree->Branch("vProb",     &vProb,           "vProb/D");
-    upsilon_tree->Branch("ctpv",      &ctpv,            "ctpv/D");
-    upsilon_tree->Branch("ctpv_error",&ctpv_error,      "ctpv_error/D");
-    upsilon_tree->Branch("trigger",   &trigger,         "trigger/i");
-    upsilon_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
-    upsilon_tree->Branch("mumu_rank", &mumu_rank,       "mumu_rank/i"); 
+    psi_tree = fs->make<TTree>("psiTree","Tree of dimuons");
+    psi_tree->Branch("run",       &run,             "run/i");
+    psi_tree->Branch("event",     &event,           "event/l");
+    psi_tree->Branch("lumiblock", &lumiblock,       "lumiblock/i");
+    psi_tree->Branch("mumu_p4",   "TLorentzVector", &mumu_p4);
+    psi_tree->Branch("muP_p4",    "TLorentzVector", &muP_p4);
+    psi_tree->Branch("muM_p4",    "TLorentzVector", &muM_p4);
+    psi_tree->Branch("vProb",     &vProb,           "vProb/D");
+    psi_tree->Branch("ctpv",      &ctpv,            "ctpv/D");
+    psi_tree->Branch("ctpv_error",&ctpv_error,      "ctpv_error/D");
+    psi_tree->Branch("trigger",   &trigger,         "trigger/i");
+    psi_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
+    psi_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
+    psi_tree->Branch("mumu_rank", &mumu_rank,       "mumu_rank/i"); 
     if (isMC_) {
-       upsilon_tree->Branch("chi_pdgId",     &chi_pdgId,        "chi_pdgId/I");
-       upsilon_tree->Branch("yns_pdgId",     &yns_pdgId,        "yns_pdgId/I");
-       upsilon_tree->Branch("gen_chi_p4",    "TLorentzVector",  &gen_chi_p4);
-       upsilon_tree->Branch("gen_yns_p4",    "TLorentzVector",  &gen_yns_p4);
-       upsilon_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
-       upsilon_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
-       upsilon_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
-       upsilon_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
+       psi_tree->Branch("chic_pdgId",    &chic_pdgId,       "chic_pdgId/I");
+       psi_tree->Branch("psi_pdgId",     &psi_pdgId,        "psi_pdgId/I");
+       psi_tree->Branch("gen_chic_p4",   "TLorentzVector",  &gen_chic_p4);
+       psi_tree->Branch("gen_psi_p4",    "TLorentzVector",  &gen_psi_p4);
+       psi_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
+       psi_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
+       psi_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
+       psi_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
     genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
 
@@ -226,11 +225,11 @@ UInt_t HIchicRootupler::getTriggerBits(const edm::Event& iEvent ) {
 // ------------ method called for each event  ------------
 void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
-  edm::Handle < pat::CompositeCandidateCollection >chi_cand_handle;
-  iEvent.getByToken(chi_, chi_cand_handle);
+  edm::Handle < pat::CompositeCandidateCollection >chic_cand_handle;
+  iEvent.getByToken(chic_, chic_cand_handle);
 
-  edm::Handle < pat::CompositeCandidateCollection >ups_hand;
-  iEvent.getByToken(ups_, ups_hand);
+  edm::Handle < pat::CompositeCandidateCollection >psi_hand;
+  iEvent.getByToken(psi_, psi_hand);
 
   edm::Handle < pat::CompositeCandidateCollection >refit1S_handle;
   iEvent.getByToken(refit1_, refit1S_handle);
@@ -246,32 +245,32 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
   event     = iEvent.id().event();
   lumiblock = iEvent.id().luminosityBlock();
 
-  pat::CompositeCandidate chi_cand;
+  pat::CompositeCandidate chic_cand;
   pat::CompositeCandidate refit1S;
 
   edm::Handle<reco::GenParticleCollection> pruned;
   iEvent.getByToken(genCands_,pruned);
 
   if (isMC_ && pruned.isValid()) {
-   gen_chi_p4.SetPtEtaPhiM(0, 0, 0, 0);
-   gen_yns_p4.SetPtEtaPhiM(0, 0, 0, 0);
+   gen_chic_p4.SetPtEtaPhiM(0, 0, 0, 0);
+   gen_psi_p4.SetPtEtaPhiM(0, 0, 0, 0);
    gen_dimuon_p4.SetPtEtaPhiM(0, 0, 0, 0);
-   chi_pdgId = 0;
+   chic_pdgId = 0;
    for (size_t i=0; i<pruned->size(); i++) {
       int p_id = abs((*pruned)[i].pdgId());
       int p_status = (*pruned)[i].status();
-      yns_pdgId = 0;
+      psi_pdgId = 0;
       int foundit = 0;
-      if ( ( p_id == 20443 || p_id == 445 || p_id == 10441) && p_status == 2)  yns_pdgId = 443;
-      if (yns_pdgId > 0) {
-         chi_pdgId = p_id;
+      if ( ( p_id == 20443 || p_id == 445 || p_id == 10441) && p_status == 2)  psi_pdgId = 443;
+      if (psi_pdgId > 0) {
+         chic_pdgId = p_id;
          foundit++;
          const reco::Candidate * pwave = &(*pruned)[i];
-         gen_chi_p4.SetPtEtaPhiM(pwave->pt(),pwave->eta(),pwave->phi(),pwave->mass());
+         gen_chic_p4.SetPtEtaPhiM(pwave->pt(),pwave->eta(),pwave->phi(),pwave->mass());
          for (size_t j=0; j<pwave->numberOfDaughters(); j++) {
             const reco::Candidate *dau = pwave->daughter(j);
-            if (dau->pdgId() == yns_pdgId && dau->status() == 2) {
-               gen_yns_p4.SetPtEtaPhiM(dau->pt(),dau->eta(),dau->phi(),dau->mass());
+            if (dau->pdgId() == psi_pdgId && dau->status() == 2) {
+               gen_psi_p4.SetPtEtaPhiM(dau->pt(),dau->eta(),dau->phi(),dau->mass());
                uint nmuons = 0;
                for (size_t k=0; k<dau->numberOfDaughters(); k++) {
                   const reco::Candidate *gdau = dau->daughter(k);
@@ -298,10 +297,10 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
             if (foundit == 5 ) break;                             // decay found !
          } 
       }
-      if (chi_pdgId && yns_pdgId && foundit==5) break;        // just one decay of this kind is expected
-      else chi_pdgId = 0;
+      if (chic_pdgId && psi_pdgId && foundit==5) break;        // just one decay of this kind is expected
+      else chic_pdgId = 0;
    } 
-   if (!chi_pdgId)  std::cout << "Rootupler does not found the given decay " << run << "," << event << std::endl;
+   if (!chic_pdgId)  std::cout << "Rootupler does not found the given decay " << run << "," << event << std::endl;
   }
 
     trigger = getTriggerBits(iEvent);   //grab Trigger informations
@@ -311,35 +310,35 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
     photon_flags = 0;
     nTrk_Vtx_Q = 0;
     // grabbing chi inforamtion
-    if (chi_cand_handle.isValid() && !chi_cand_handle->empty()) {
+    if (chic_cand_handle.isValid() && !chic_cand_handle->empty()) {
 
-       unsigned int csize = chi_cand_handle->size();
+       unsigned int csize = chic_cand_handle->size();
        if (bestCandidateOnly_) csize = 1;
 
        for (unsigned int i = 0; i < csize; i++) {
-	   chi_cand = chi_cand_handle->at(i);
+	   chic_cand = chic_cand_handle->at(i);
 
-	   chi_p4.SetPtEtaPhiM(chi_cand.pt(), chi_cand.eta(), chi_cand.phi(), chi_cand.mass());
-	   dimuon_p4.SetPtEtaPhiM(chi_cand.daughter("dimuon")->pt(), chi_cand.daughter("dimuon")->eta(), 
-                                  chi_cand.daughter("dimuon")->phi(), chi_cand.daughter("dimuon")->mass());
+	   chic_p4.SetPtEtaPhiM(chic_cand.pt(), chic_cand.eta(), chic_cand.phi(), chic_cand.mass());
+	   dimuon_p4.SetPtEtaPhiM(chic_cand.daughter("dimuon")->pt(), chic_cand.daughter("dimuon")->eta(), 
+                                  chic_cand.daughter("dimuon")->phi(), chic_cand.daughter("dimuon")->mass());
 
-	   photon_p4.SetPtEtaPhiM(chi_cand.daughter("photon")->pt(), chi_cand.daughter("photon")->eta(), 
-                                  chi_cand.daughter("photon")->phi(), chi_cand.daughter("photon")->mass());
+	   photon_p4.SetPtEtaPhiM(chic_cand.daughter("photon")->pt(), chic_cand.daughter("photon")->eta(), 
+                                  chic_cand.daughter("photon")->phi(), chic_cand.daughter("photon")->mass());
 
-	   reco::Candidate::LorentzVector vP = chi_cand.daughter("dimuon")->daughter("muon1")->p4();
-	   reco::Candidate::LorentzVector vM = chi_cand.daughter("dimuon")->daughter("muon2")->p4();
+	   reco::Candidate::LorentzVector vP = chic_cand.daughter("dimuon")->daughter("muon1")->p4();
+	   reco::Candidate::LorentzVector vM = chic_cand.daughter("dimuon")->daughter("muon2")->p4();
 
-	   if (chi_cand.daughter("dimuon")->daughter("muon1")->charge() < 0) {
-	      vP = chi_cand.daughter("dimuon")->daughter("muon2")->p4();
-	      vM = chi_cand.daughter("dimuon")->daughter("muon1")->p4();
+	   if (chic_cand.daughter("dimuon")->daughter("muon1")->charge() < 0) {
+	      vP = chic_cand.daughter("dimuon")->daughter("muon2")->p4();
+	      vM = chic_cand.daughter("dimuon")->daughter("muon1")->p4();
 	   }
 
 	   muonP_p4.SetPtEtaPhiM(vP.pt(), vP.eta(), vP.phi(), vP.mass());
 	   muonM_p4.SetPtEtaPhiM(vM.pt(), vM.eta(), vM.phi(), vM.mass());
 
-	   Double_t ele1_pt = (dynamic_cast<const pat::CompositeCandidate *>(chi_cand.daughter("photon"))->
+	   Double_t ele1_pt = (dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon"))->
                                     userData<reco::Track>("track0"))->pt();
-	   Double_t ele2_pt = (dynamic_cast<const pat::CompositeCandidate *>(chi_cand.daughter("photon"))->
+	   Double_t ele2_pt = (dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon"))->
                                     userData<reco::Track>("track1"))->pt();
 
 	   if (ele1_pt > ele2_pt) {
@@ -350,16 +349,16 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
 	      ele_lowerPt_pt = ele1_pt;
 	   }
 
-           vProb = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("vProb");
-	   ctpv = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("ppdlPV");
-	   ctpv_error = (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userFloat("ppdlErrPV");
-	   photon_flags = (UInt_t) dynamic_cast<const pat::CompositeCandidate *>(chi_cand.daughter("photon"))->userInt("flags");
+           vProb = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("vProb");
+	   ctpv = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlPV");
+	   ctpv_error = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlErrPV");
+	   photon_flags = (UInt_t) dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon"))->userInt("flags");
 
-	   conv_vertex = chi_cand.daughter("photon")->vertex().rho();
-	   dz = chi_cand.userFloat("dz");
+	   conv_vertex = chic_cand.daughter("photon")->vertex().rho();
+	   dz = chic_cand.userFloat("dz");
 
            UInt_t nTrk_Vtx_Q_tmp = 0;
-           const reco::Vertex *thePrimaryV =  (dynamic_cast < pat::CompositeCandidate * >(chi_cand.daughter("dimuon")))->userData<reco::Vertex>("PVwithmuons");
+           const reco::Vertex *thePrimaryV =  (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userData<reco::Vertex>("PVwithmuons");
            std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
            for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
                const reco::Track &track = **itPVtrack;
@@ -375,7 +374,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
                           Y_sig_par_C * pow(fabs(dimuon_p4.Rapidity()), 3);
 
 	   y1S_nsigma = fabs(dimuon_p4.M() - y1SMass) / sigma;
-           double QValue = chi_p4.M() - dimuon_p4.M();
+           double QValue = chic_p4.M() - dimuon_p4.M();
 
            invm1S = QValue + y1SMass;
 
@@ -383,38 +382,49 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
            if (refit1S_handle.isValid() && i < refit1S_handle->size()) { j = (refit1S_handle->at(i)).userInt("Index"); }
 	   if ( j >= 0  && (unsigned int) j == i ) {
 	      refit1S = refit1S_handle->at(i);
-	      rf1S_chi_p4.SetPtEtaPhiM(refit1S.pt(), refit1S.eta(), refit1S.phi(), refit1S.mass());
-	      probFit1S = refit1S.userFloat("vProb");
+	      rf1S_chic_p4.SetPtEtaPhiM(refit1S.pt(), refit1S.eta(), refit1S.phi(), refit1S.mass());
+	      rf1S_vProb = refit1S.userFloat("vProb");
               rf1S_ctpv = refit1S.userFloat("ctauPV");
               rf1S_ctpv_error = refit1S.userFloat("ctauErrPV");
 	   } else {
-	      rf1S_chi_p4.SetPtEtaPhiM(chi_cand.pt(), chi_cand.eta(), chi_cand.phi(), invm1S);
-	      probFit1S = -1;
+	      rf1S_chic_p4.SetPtEtaPhiM(chic_cand.pt(), chic_cand.eta(), chic_cand.phi(), invm1S);
+	      rf1S_vProb = -1;
 	   }	// if rf1S is valid
-	   chib_tree->Fill();
+	   chic_tree->Fill();
            rf1S_rank++;
-	}		// for i on chi_cand_handle
+	}		// for i on chic_cand_handle
     } //else std::cout << "no valid chi handle" << std::endl;
     
     mumu_rank = 0;
-    if (ups_hand.isValid() && !ups_hand->empty()) {
-      for (unsigned int i=0; i< ups_hand->size(); i++) {
-        pat::CompositeCandidate ups_ = ups_hand->at(i);
-        mumu_p4.SetPtEtaPhiM(ups_.pt(), ups_.eta(), ups_.phi(), ups_.mass());
-	ctpv = ups_.userFloat("ppdlPV");
-	ctpv_error = ups_.userFloat("ppdlErrPV");
-        vProb = ups_.userFloat("vProb");
+    if (psi_hand.isValid() && !psi_hand->empty()) {
+      for (unsigned int i=0; i< psi_hand->size(); i++) {
+        pat::CompositeCandidate psi_ = psi_hand->at(i);
+        mumu_p4.SetPtEtaPhiM(psi_.pt(), psi_.eta(), psi_.phi(), psi_.mass());
+	ctpv = psi_.userFloat("ppdlPV");
+	ctpv_error = psi_.userFloat("ppdlErrPV");
+        vProb = psi_.userFloat("vProb");
 
-        reco::Candidate::LorentzVector vP = ups_.daughter("muon1")->p4();
-        reco::Candidate::LorentzVector vM = ups_.daughter("muon2")->p4();
-        if (ups_.daughter("muon1")->charge() < 0) {
-           vP = ups_.daughter("muon2")->p4();
-           vM = ups_.daughter("muon1")->p4();
+        reco::Candidate::LorentzVector vP = psi_.daughter("muon1")->p4();
+        reco::Candidate::LorentzVector vM = psi_.daughter("muon2")->p4();
+        if (psi_.daughter("muon1")->charge() < 0) {
+           vP = psi_.daughter("muon2")->p4();
+           vM = psi_.daughter("muon1")->p4();
         }
+
+        UInt_t nTrk_Vtx_Q_tmp = 0;
+        const reco::Vertex *thePrimaryV =  psi_.userData<reco::Vertex>("PVwithmuons");
+        std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
+        for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
+            const reco::Track &track = **itPVtrack;
+            if (track.pt() < 0.4) continue;
+            if (fabs(track.eta())>2.4) continue;
+            nTrk_Vtx_Q_tmp++;
+        }
+        nTrk_Vtx_Q = nTrk_Vtx_Q_tmp;
 
         muP_p4.SetPtEtaPhiM(vP.pt(), vP.eta(), vP.phi(), vP.mass());
         muM_p4.SetPtEtaPhiM(vM.pt(), vM.eta(), vM.phi(), vM.mass());
-        upsilon_tree->Fill();
+        psi_tree->Fill();
         mumu_rank++;
 	break;  // just one combination per event, the bestonly
       }
