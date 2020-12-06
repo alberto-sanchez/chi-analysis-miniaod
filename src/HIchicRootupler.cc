@@ -74,7 +74,7 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	UInt_t numPrimaryVertices;
 	UInt_t trigger;
 	UInt_t rf1S_rank;
-        UInt_t nTrk_Vtx_Q;
+        UInt_t nTrk_Vtx_Q, nTrk_Vtx;
 
 	TTree *chic_tree;
 
@@ -153,6 +153,7 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chic_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
     chic_tree->Branch("trigger",            &trigger,            "trigger/i");
     chic_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
+    chic_tree->Branch("nTrk_Vtx",           &nTrk_Vtx,           "nTrk_Vtx/i");
     chic_tree->Branch("rf1S_rank",          &rf1S_rank,          "rf1S_rank/i");
 
     if (isMC_) {
@@ -178,6 +179,7 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     psi_tree->Branch("ctpv_error",&ctpv_error,      "ctpv_error/D");
     psi_tree->Branch("trigger",   &trigger,         "trigger/i");
     psi_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
+    psi_tree->Branch("nTrk_Vtx",           &nTrk_Vtx,           "nTrk_Vtx/i");
     psi_tree->Branch("numPrimaryVertices", &numPrimaryVertices, "numPrimaryVertices/i");
     psi_tree->Branch("mumu_rank", &mumu_rank,       "mumu_rank/i"); 
     if (isMC_) {
@@ -190,7 +192,7 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
        psi_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        psi_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
     }
-    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
+    genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"genParticles");
 
 }
 
@@ -309,6 +311,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
     rf1S_rank = 0;
     photon_flags = 0;
     nTrk_Vtx_Q = 0;
+    nTrk_Vtx = 0;
     // grabbing chi inforamtion
     if (chic_cand_handle.isValid() && !chic_cand_handle->empty()) {
 
@@ -358,6 +361,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
 	   dz = chic_cand.userFloat("dz");
 
            UInt_t nTrk_Vtx_Q_tmp = 0;
+           UInt_t nTrk_Vtx_tmp = 0;
            const reco::Vertex *thePrimaryV =  (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userData<reco::Vertex>("PVwithmuons");
            std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
            for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
@@ -365,9 +369,10 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
                if (track.pt() < 0.4) continue;
                if (fabs(track.eta())>2.4) continue;
                nTrk_Vtx_Q_tmp++;
+               if (track.quality(reco::TrackBase::highPurity)) nTrk_Vtx_tmp++;
            }
            nTrk_Vtx_Q = nTrk_Vtx_Q_tmp;
-
+           nTrk_Vtx   = nTrk_Vtx_tmp;
 
 	   // 2012 parameterization
 	   double sigma = Y_sig_par_A + Y_sig_par_B * pow(fabs(dimuon_p4.Rapidity()), 2) + 
@@ -412,6 +417,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
         }
 
         UInt_t nTrk_Vtx_Q_tmp = 0;
+        UInt_t nTrk_Vtx_tmp = 0;
         const reco::Vertex *thePrimaryV =  psi_.userData<reco::Vertex>("PVwithmuons");
         std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
         for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
@@ -419,8 +425,10 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
             if (track.pt() < 0.4) continue;
             if (fabs(track.eta())>2.4) continue;
             nTrk_Vtx_Q_tmp++;
+            if (track.quality(reco::TrackBase::highPurity)) nTrk_Vtx_tmp++;
         }
         nTrk_Vtx_Q = nTrk_Vtx_Q_tmp;
+        nTrk_Vtx = nTrk_Vtx_tmp;
 
         muP_p4.SetPtEtaPhiM(vP.pt(), vP.eta(), vP.phi(), vP.mass());
         muM_p4.SetPtEtaPhiM(vM.pt(), vM.eta(), vM.phi(), vM.mass());
