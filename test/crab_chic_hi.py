@@ -1,6 +1,10 @@
 from CRABClient.UserUtilities import config
 config = config()
 
+import datetime, time
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d-%H-%M')
+
 ii=1
 
 myrun='run_chic_hi.py'
@@ -13,7 +17,7 @@ else :
   myname='chic_hi_Pbp'
   mylumi='Cert_285952-286496_HI8TeV_PromptReco_Pbp_Collisions16_JSON_NoL1T_MuonPhys.txt'
 
-config.General.requestName = myname
+config.General.requestName = myname+'-'+st
 config.General.transferOutputs = True
 config.General.transferLogs = True
 
