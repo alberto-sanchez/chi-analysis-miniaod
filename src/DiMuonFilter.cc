@@ -45,9 +45,13 @@ UInt_t DiMuonFilter::isTriggerMatched(const pat::CompositeCandidate *diMuon_cand
 
 // if matched a given trigger, set the bit, in the same order as listed
   for (unsigned int iTr = 0; iTr<HLTFilters_.size(); iTr++ ) {
+      const pat::TriggerObjectStandAlone *mu1obj = muon1->triggerObjectMatchByPath(HLTFilters_[iTr],true,true);
+      const pat::TriggerObjectStandAlone *mu2obj = muon2->triggerObjectMatchByPath(HLTFilters_[iTr],true,true);
+      if ((mu1obj != nullptr) && (mu2obj != nullptr)) matched += (1<<iTr);
+/*
      const pat::TriggerObjectStandAloneCollection mu1HLTMatches = muon1->triggerObjectMatchesByFilter(HLTFilters_[iTr]);
      const pat::TriggerObjectStandAloneCollection mu2HLTMatches = muon2->triggerObjectMatchesByFilter(HLTFilters_[iTr]);
-     if (!mu1HLTMatches.empty() && !mu2HLTMatches.empty()) matched += (1<<iTr); 
+     if (!mu1HLTMatches.empty() && !mu2HLTMatches.empty()) matched += (1<<iTr); */
   }
   return matched;
 }
