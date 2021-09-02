@@ -71,6 +71,7 @@ class OniaPhotonKinematicFit : public edm::EDProducer {
   double upsilon_mass_;
   std::string product_name_;
   edm::EDGetTokenT<pat::CompositeCandidateCollection> chi_Label;
+  edm::EDGetTokenT<reco::BeamSpot> thebeamspot_;
 
   template<typename T>
     struct GreaterByVProb {
@@ -84,6 +85,7 @@ class OniaPhotonKinematicFit : public edm::EDProducer {
 
 OniaPhotonKinematicFit::OniaPhotonKinematicFit(const edm::ParameterSet& iConfig) {
   chi_Label     = consumes<pat::CompositeCandidateCollection>(iConfig.getParameter< edm::InputTag>("chi_cand"));
+  thebeamspot_  = consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpotTag"));
   upsilon_mass_ = iConfig.getParameter<double>("upsilon_mass");
   product_name_ = iConfig.getParameter<std::string>("product_name");
   produces<pat::CompositeCandidateCollection>(product_name_);
@@ -98,7 +100,13 @@ void OniaPhotonKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup& 
   
   //Kinemati refit collection
   std::unique_ptr<pat::CompositeCandidateCollection> chicCompCandRefitColl(new pat::CompositeCandidateCollection);
-  
+ 
+  reco::Vertex theBeamSpotV;
+  edm::Handle<reco::BeamSpot> theBeamSpot;
+  iEvent.getByToken(thebeamspot_, theBeamSpot);
+  reco::BeamSpot bs = *theBeamSpot;
+  theBeamSpotV = reco::Vertex(bs.position(), bs.covariance3D());
+ 
   // Kinematic fit
   edm::ESHandle<TransientTrackBuilder> theB; 
   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theB); 
@@ -227,6 +235,22 @@ void OniaPhotonKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup& 
             patChib.addUserFloat("ctauPV",ctauPV);
             patChib.addUserFloat("ctauErrPV",ctauErrPV);
             patChib.addUserFloat("cosAlpha",cosAlpha);
+
+ // lifetime using BS
+            pvtx.SetXYZ(theBeamSpotV.position().x(), theBeamSpotV.position().y(), 0);
+            vdiff = vtx - pvtx;
+            double cosAlphaBS = vdiff.Dot(pperp) / (vdiff.Perp() * pperp.Perp());
+            distXY = vdistXY.distance(myVertex, theBeamSpotV);
+            double ctauBS = distXY.value() * cosAlphaBS * ChiBM_fit / pperp.Perp();
+            GlobalError v1eB = myVertex.error();
+            GlobalError v2eB = theBeamSpotV.error();
+            AlgebraicSymMatrix33 vXYeB = v1eB.matrix() + v2eB.matrix();
+            double ctauErrBS = sqrt(ROOT::Math::Similarity(vpperp, vXYeB)) * ChiBM_fit / (pperp.Perp2());
+
+            patChib.addUserFloat("ctauBS", ctauBS);
+            patChib.addUserFloat("ctauErrBS", ctauErrBS);
+            patChib.addUserData("commonVertex", myVertex);
+            patChib.addUserData("BSVertex", theBeamSpotV);
 
             //get first muon
             bool child = ChiBTree->movePointerToTheFirstChild();

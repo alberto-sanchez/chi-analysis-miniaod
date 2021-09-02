@@ -44,6 +44,7 @@ class HIchicRootupler:public edm::EDAnalyzer {
         edm::EDGetTokenT<pat::CompositeCandidateCollection> refit1_;
         edm::EDGetTokenT<reco::VertexCollection>            primaryVertices_;
         edm::EDGetTokenT<edm::TriggerResults>               triggerResults_;
+        edm::EDGetTokenT<reco::BeamSpot> thebeamspot_;
 
 	bool isMC_;
         std::vector<std::string> FilterNames_;
@@ -65,8 +66,8 @@ class HIchicRootupler:public edm::EDAnalyzer {
 
 	Double_t ele_lowerPt_pt;
 	Double_t ele_higherPt_pt;
-	Double_t ctpv, ctpv_error;
-	Double_t rf1S_ctpv, rf1S_ctpv_error;
+	Double_t ctpv, ctpv_error, ctbs, ctbs_error;
+	Double_t rf1S_ctpv, rf1S_ctpv_error, rf1S_ctbs, rf1S_ctbs_error;
 	Double_t conv_vertex;
 	Double_t dz;
 
@@ -75,6 +76,11 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	UInt_t trigger;
 	UInt_t rf1S_rank;
         UInt_t nTrk_Vtx_Q, nTrk_Vtx;
+
+        TVector3       pvtx_s;
+        TVector3       pvtx_b;
+        TVector3       psivtx;
+        TVector3       chivtx;
 
 	TTree *chic_tree;
 
@@ -86,12 +92,18 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	TLorentzVector gen_photon_p4;
 	TLorentzVector gen_muonP_p4;
 	TLorentzVector gen_muonM_p4;
+        TVector3       gen_pvtx;
+        TVector3       gen_psivtx;
+        TVector3       gen_chivtx;
 
         edm::EDGetTokenT<reco::GenParticleCollection> genCands_;
 
         TTree *psi_tree;
         TLorentzVector mumu_p4, muP_p4, muM_p4;
         UInt_t mumu_rank;
+
+  int evt_total;
+  int evt_pass;
 
 };
 
@@ -116,6 +128,7 @@ psi_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::Inp
 refit1_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter < edm::InputTag > ("refit1S"))),
 primaryVertices_(consumes<reco::VertexCollection>(iConfig.getParameter < edm::InputTag > ("primaryVertices"))),
 triggerResults_(consumes<edm::TriggerResults>(iConfig.getParameter < edm::InputTag > ("TriggerResults"))), 
+thebeamspot_(consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpotTag"))),
 isMC_(iConfig.getParameter < bool > ("isMC")),
 FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
 {
@@ -133,6 +146,11 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chic_tree->Branch("photon_p4", "TLorentzVector", &photon_p4);
 
     chic_tree->Branch("rf1S_chic_p4", "TLorentzVector", &rf1S_chic_p4);
+    chic_tree->Branch("pvtx_s",       "TVector3",       &pvtx_s);
+    chic_tree->Branch("pvtx_b",       "TVector3",       &pvtx_b);
+    chic_tree->Branch("psivtx",       "TVector3",       &psivtx);
+    chic_tree->Branch("chivtx",       "TVector3",       &chivtx);
+
     chic_tree->Branch("invm1S",       &invm1S,          "invm1S/D");
     chic_tree->Branch("rf1S_vProb",   &rf1S_vProb,      "rf1S_vProb/D");
     chic_tree->Branch("y1S_nsigma",   &y1S_nsigma,      "y1S_nsigma/D");
@@ -143,8 +161,12 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chic_tree->Branch("vProb",          &vProb,          "vProb/D");
     chic_tree->Branch("ctpv",           &ctpv,           "ctpv/D");
     chic_tree->Branch("ctpv_error",     &ctpv_error,     "ctpv_error/D");
+    chic_tree->Branch("ctbs",           &ctbs,           "ctbs/D");
+    chic_tree->Branch("ctbs_error",     &ctbs_error,     "ctbs_error/D");
     chic_tree->Branch("rf1S_ctpv",      &rf1S_ctpv,      "rf1S_ctpv/D");
     chic_tree->Branch("rf1S_ctpv_error",&rf1S_ctpv_error,"rf1S_ctpv_error/D");
+    chic_tree->Branch("rf1S_ctbs",      &rf1S_ctbs,      "rf1S_ctbs/D");
+    chic_tree->Branch("rf1S_ctbs_error",&rf1S_ctbs_error,"rf1S_ctbs_error/D");
     chic_tree->Branch("conv_vertex",    &conv_vertex,    "conv_vertex/D");
     chic_tree->Branch("dz",             &dz,             "dz/D");
 
@@ -165,6 +187,9 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
        chic_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
        chic_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        chic_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
+       chic_tree->Branch("gen_pvtx",      "TVector3",        &gen_pvtx);
+       chic_tree->Branch("gen_psivtx",    "TVector3",        &gen_psivtx);
+       chic_tree->Branch("gen_chivtx",    "TVector3",        &gen_chivtx);
     }
 
     psi_tree = fs->make<TTree>("psiTree","Tree of dimuons");
@@ -177,6 +202,11 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     psi_tree->Branch("vProb",     &vProb,           "vProb/D");
     psi_tree->Branch("ctpv",      &ctpv,            "ctpv/D");
     psi_tree->Branch("ctpv_error",&ctpv_error,      "ctpv_error/D");
+    psi_tree->Branch("ctbs",      &ctbs,            "ctbs/D");
+    psi_tree->Branch("ctbs_error",&ctbs_error,      "ctbs_error/D");
+    psi_tree->Branch("pvtx_s",    "TVector3",       &pvtx_s);
+    psi_tree->Branch("pvtx_b",    "TVector3",       &pvtx_b);
+    psi_tree->Branch("psivtx",    "TVector3",       &psivtx);
     psi_tree->Branch("trigger",   &trigger,         "trigger/i");
     psi_tree->Branch("nTrk_Vtx_Q",         &nTrk_Vtx_Q,         "nTrk_Vtx_Q/i");
     psi_tree->Branch("nTrk_Vtx",           &nTrk_Vtx,           "nTrk_Vtx/i");
@@ -191,8 +221,13 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
        psi_tree->Branch("gen_photon_p4", "TLorentzVector",  &gen_photon_p4);
        psi_tree->Branch("gen_muonP_p4",  "TLorentzVector",  &gen_muonP_p4);
        psi_tree->Branch("gen_muonM_p4",  "TLorentzVector",  &gen_muonM_p4);
+       psi_tree->Branch("gen_pvtx",      "TVector3",        &gen_pvtx);
+       psi_tree->Branch("gen_psivtx",    "TVector3",        &gen_psivtx);
+       psi_tree->Branch("gen_chivtx",    "TVector3",        &gen_chivtx);
     }
     genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"genParticles");
+    evt_total = 0;
+    evt_pass  = 0;
 
 }
 
@@ -242,6 +277,12 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
   edm::Handle < edm::TriggerResults > triggerResults_handle;
   iEvent.getByToken(triggerResults_, triggerResults_handle);
 
+  reco::Vertex theBeamSpotV;
+  edm::Handle<reco::BeamSpot> theBeamSpot;
+  iEvent.getByToken(thebeamspot_, theBeamSpot);
+  reco::BeamSpot bs = *theBeamSpot;
+  theBeamSpotV = reco::Vertex(bs.position(), bs.covariance3D());
+
   numPrimaryVertices = primaryVertices_handle->size();
   run       = iEvent.id().run();
   event     = iEvent.id().event();
@@ -253,6 +294,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
   edm::Handle<reco::GenParticleCollection> pruned;
   iEvent.getByToken(genCands_,pruned);
 
+  evt_total++;
   if (isMC_ && pruned.isValid()) {
    gen_chic_p4.SetPtEtaPhiM(0, 0, 0, 0);
    gen_psi_p4.SetPtEtaPhiM(0, 0, 0, 0);
@@ -269,16 +311,19 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
          foundit++;
          const reco::Candidate * pwave = &(*pruned)[i];
          gen_chic_p4.SetPtEtaPhiM(pwave->pt(),pwave->eta(),pwave->phi(),pwave->mass());
+         gen_pvtx.SetXYZ(pwave->vx(),pwave->vy(),pwave->vz());
          for (size_t j=0; j<pwave->numberOfDaughters(); j++) {
             const reco::Candidate *dau = pwave->daughter(j);
             if (dau->pdgId() == psi_pdgId && dau->status() == 2) {
                gen_psi_p4.SetPtEtaPhiM(dau->pt(),dau->eta(),dau->phi(),dau->mass());
+               gen_chivtx.SetXYZ(dau->vx(),dau->vy(),dau->vz());
                uint nmuons = 0;
                for (size_t k=0; k<dau->numberOfDaughters(); k++) {
                   const reco::Candidate *gdau = dau->daughter(k);
                   if (gdau->pdgId() == 13 && gdau->status()==1) {
                      nmuons++;
                      gen_muonM_p4.SetPtEtaPhiM(gdau->pt(),gdau->eta(),gdau->phi(),gdau->mass());
+                     gen_psivtx.SetXYZ(gdau->vx(),gdau->vy(),gdau->vz());
                   } else {
                      if (gdau->pdgId() == -13 && gdau->status()==1) {
                         nmuons++;
@@ -303,6 +348,7 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
       else chic_pdgId = 0;
    } 
    if (!chic_pdgId)  std::cout << "Rootupler does not found the given decay " << run << "," << event << std::endl;
+   else  evt_pass++;
   }
 
     trigger = getTriggerBits(iEvent);   //grab Trigger informations
@@ -355,6 +401,8 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
            vProb = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("vProb");
 	   ctpv = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlPV");
 	   ctpv_error = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlErrPV");
+           ctbs = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlBS");
+           ctbs_error = (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userFloat("ppdlErrBS");
 	   photon_flags = (UInt_t) dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon"))->userInt("flags");
 
 	   conv_vertex = chic_cand.daughter("photon")->vertex().rho();
@@ -363,6 +411,11 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
            UInt_t nTrk_Vtx_Q_tmp = 0;
            UInt_t nTrk_Vtx_tmp = 0;
            const reco::Vertex *thePrimaryV =  (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userData<reco::Vertex>("PVwithmuons");
+           pvtx_s.SetXYZ(thePrimaryV->position().x(), thePrimaryV->position().y(), thePrimaryV->position().z());
+           pvtx_b.SetXYZ(theBeamSpotV.position().x(), theBeamSpotV.position().y(), theBeamSpotV.position().z());
+           const reco::Vertex *thePsiV =  (dynamic_cast < pat::CompositeCandidate * >(chic_cand.daughter("dimuon")))->userData<reco::Vertex>("commonVertex");
+           psivtx.SetXYZ(thePsiV->position().x(), thePsiV->position().y(), thePsiV->position().z());
+
            std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
            for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
                const reco::Track &track = **itPVtrack;
@@ -391,6 +444,10 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
 	      rf1S_vProb = refit1S.userFloat("vProb");
               rf1S_ctpv = refit1S.userFloat("ctauPV");
               rf1S_ctpv_error = refit1S.userFloat("ctauErrPV");
+              rf1S_ctbs = refit1S.userFloat("ctauBS");
+              rf1S_ctbs_error = refit1S.userFloat("ctauErrBS");
+              const reco::Vertex *theChiV = refit1S.userData<reco::Vertex>("commonVertex");
+              chivtx.SetXYZ(theChiV->position().x(), theChiV->position().y(), theChiV->position().z());
 	   } else {
 	      rf1S_chic_p4.SetPtEtaPhiM(chic_cand.pt(), chic_cand.eta(), chic_cand.phi(), invm1S);
 	      rf1S_vProb = -1;
@@ -407,6 +464,8 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
         mumu_p4.SetPtEtaPhiM(psi_.pt(), psi_.eta(), psi_.phi(), psi_.mass());
 	ctpv = psi_.userFloat("ppdlPV");
 	ctpv_error = psi_.userFloat("ppdlErrPV");
+        ctbs = psi_.userFloat("ppdlBS");
+        ctbs_error = psi_.userFloat("ppdlErrBS");
         vProb = psi_.userFloat("vProb");
 
         reco::Candidate::LorentzVector vP = psi_.daughter("muon1")->p4();
@@ -419,6 +478,11 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
         UInt_t nTrk_Vtx_Q_tmp = 0;
         UInt_t nTrk_Vtx_tmp = 0;
         const reco::Vertex *thePrimaryV =  psi_.userData<reco::Vertex>("PVwithmuons");
+        pvtx_s.SetXYZ(thePrimaryV->position().x(), thePrimaryV->position().y(), thePrimaryV->position().z());
+        pvtx_b.SetXYZ(theBeamSpotV.position().x(), theBeamSpotV.position().y(), theBeamSpotV.position().z());
+        const reco::Vertex *thePsiV =  psi_.userData<reco::Vertex>("commonVertex");
+        psivtx.SetXYZ(thePsiV->position().x(), thePsiV->position().y(), thePsiV->position().z());
+
         std::vector<reco::TrackBaseRef>::const_iterator itPVtrack = thePrimaryV->tracks_begin();
         for (; itPVtrack != thePrimaryV->tracks_end(); ++itPVtrack) {
             const reco::Track &track = **itPVtrack;

@@ -194,7 +194,8 @@ process.chiProducer = cms.EDProducer('OniaPhotonProducer',
 process.chiFitter1S = cms.EDProducer('OniaPhotonKinematicFit',
                           chi_cand = cms.InputTag("chiProducer"),
                           upsilon_mass = cms.double(3.0969), # GeV   1S = 9.46030   2S = 10.02326    3S = 10.35520  J/psi=3.0969
-                          product_name = cms.string("y1S")
+                          product_name = cms.string("y1S"),
+			  beamSpotTag = cms.InputTag('offlineBeamSpot')
                          )
 
 process.chiSequence = cms.Sequence(
@@ -215,6 +216,7 @@ process.rootuple = cms.EDAnalyzer('HIchicRootupler',
                           refit1S  = cms.InputTag("chiFitter1S","y1S"),
                           primaryVertices = cms.InputTag("offlinePrimaryVertices"),
                           TriggerResults  = cms.InputTag("TriggerResults", "", "HLT"),
+			  beamSpotTag = cms.InputTag('offlineBeamSpot'),
                           isMC = cms.bool(False),
                           FilterNames = cms.vstring(
    'HLT_PAL1DoubleMu0',

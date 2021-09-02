@@ -3,9 +3,9 @@ config = config()
 
 import datetime, time
 ts = time.time()
-st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d-%H-%M')
+st = datetime.datetime.fromtimestamp(ts).strftime('%y%m%d-%H%M')
 
-ii=1
+ii=0
 
 myrun='run_chic_hi.py'
 mydata='/PADoubleMuon/PARun2016C-PromptReco-v1/AOD'
