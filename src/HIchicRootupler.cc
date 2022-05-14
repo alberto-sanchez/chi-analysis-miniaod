@@ -74,8 +74,14 @@ class HIchicRootupler:public edm::EDAnalyzer {
 	Double_t dz;
 
         Double_t z_pv, dz_pv_11, dz_pv_12, dz_pv_21, dz_pv_22;
+        Double_t sigma_tk1_vtx, sigma_tk2_vtx;
         Double_t dPhiTvx, vtxChi2;
         Int_t    vtxNDoF, nTracks;
+        Double_t conv_vertex_rho;
+        Int_t    conv_tkvtx_comp, conv_comp_ihits, conv_high_purity, conv_reject_pi0;
+        Int_t    conv_algo, conv_qual_high_purity, conv_qual_generaltks;
+
+        Double_t tk1_chi2, tk2_chi2, tk1_ndof, tk2_ndof;
 
 	UInt_t photon_flags;
 	UInt_t numPrimaryVertices,numDiMuons,numChis,numKVFChis;
@@ -180,6 +186,22 @@ FilterNames_(iConfig.getParameter<std::vector<std::string>>("FilterNames"))
     chic_tree->Branch("dz_pv_12",        &dz_pv_12,        "dz_pv_12/D");
     chic_tree->Branch("dz_pv_21",        &dz_pv_21,        "dz_pv_21/D");
     chic_tree->Branch("dz_pv_22",        &dz_pv_22,        "dz_pv_22/D");
+
+    chic_tree->Branch("sigma_tk1_vtx",   &sigma_tk1_vtx,   "sigma_tk1_vtx/D");
+    chic_tree->Branch("sigma_tk2_vtx",   &sigma_tk2_vtx,   "sigma_tk2_vtx/D");
+    chic_tree->Branch("tk1_chi2",        &tk1_chi2,        "tk1_chi2/D");
+    chic_tree->Branch("tk2_chi2",        &tk2_chi2,        "tk2_chi2/D");
+    chic_tree->Branch("tk1_ndof",        &tk1_ndof,        "tk1_ndof/D");
+    chic_tree->Branch("tk2_ndof",        &tk2_ndof,        "tk2_ndof/D");
+
+    chic_tree->Branch("conv_vertex_rho",       &conv_vertex_rho,       "conv_vertex_rho/D");
+    chic_tree->Branch("conv_tkvtx_comp",       &conv_tkvtx_comp,       "conv_tkvtx_comp/i");
+    chic_tree->Branch("conv_comp_ihits",       &conv_comp_ihits,       "conv_comp_ihits/i");
+    chic_tree->Branch("conv_high_purity",      &conv_high_purity,      "conv_high_purity/i");
+    chic_tree->Branch("conv_reject_pi0",       &conv_reject_pi0,       "conv_reject_pi0/i");
+    chic_tree->Branch("conv_algo",             &conv_algo,             "conv_algo/i");
+    chic_tree->Branch("conv_qual_high_purity", &conv_qual_high_purity, "conv_qual_high_purity/i");
+    chic_tree->Branch("conv_qual_generaltks",  &conv_qual_generaltks,  "conv_qual_generaltks/i");
 
     chic_tree->Branch("vProb",          &vProb,          "vProb/D");
     chic_tree->Branch("ctpv",           &ctpv,           "ctpv/D");
@@ -409,7 +431,16 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
 	   reco::Candidate::LorentzVector vP = chic_cand.daughter("dimuon")->daughter("muon1")->p4();
 	   reco::Candidate::LorentzVector vM = chic_cand.daughter("dimuon")->daughter("muon2")->p4();
 
-            const pat::CompositeCandidate *ThePhoton = (dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon")));
+           const pat::CompositeCandidate *ThePhoton = (dynamic_cast<const pat::CompositeCandidate *>(chic_cand.daughter("photon")));
+
+           conv_vertex_rho = ThePhoton->userFloat("conv_vertex_rho");
+           conv_tkvtx_comp = ThePhoton->userInt("conv_tkvtx_comp");
+           conv_comp_ihits = ThePhoton->userInt("conv_comp_ihits");
+           conv_high_purity = ThePhoton->userInt("conv_high_purity");
+           conv_reject_pi0 = ThePhoton->userInt("conv_reject_pi0");
+           conv_algo = ThePhoton->userInt("conv_algo");
+           conv_qual_high_purity = ThePhoton->userInt("conv_qual_high_purity");
+           conv_qual_generaltks = ThePhoton->userInt("conv_qual_generaltks");
 
            deltapi0 = ThePhoton->userFloat("deltapi0");
            distMinA = ThePhoton->userFloat("distMinA");
@@ -446,10 +477,27 @@ void HIchicRootupler::analyze(const edm::Event & iEvent, const edm::EventSetup &
            const reco::Vertex *thePV_dz2 = ThePhoton->userData<reco::Vertex>("closet_pv_d2");
 
            z_pv = ThePhoton->userFloat("pv_z"); //zOfPrimaryVertexFromTracks(thePV_closest->position());
-           dz_pv_11 = (ThePhoton->userData<reco::Track>("track0"))->dz(thePV_dz1->position());
-           dz_pv_21 = (ThePhoton->userData<reco::Track>("track0"))->dz(thePV_dz2->position());
-           dz_pv_12 = (ThePhoton->userData<reco::Track>("track1"))->dz(thePV_dz1->position());
-           dz_pv_22 = (ThePhoton->userData<reco::Track>("track1"))->dz(thePV_dz2->position());
+           const reco::Track *theTk0 = ThePhoton->userData<reco::Track>("track0");
+           const reco::Track *theTk1 = ThePhoton->userData<reco::Track>("track1");
+
+           dz_pv_11 = theTk0->dz(thePV_dz1->position());
+           dz_pv_21 = theTk0->dz(thePV_dz2->position());
+           dz_pv_12 = theTk1->dz(thePV_dz1->position());
+           dz_pv_22 = theTk1->dz(thePV_dz2->position());
+
+           double dzError0_ = theTk0->dzError();
+           dzError0_ = sqrt(dzError0_*dzError0_+ thePV_dz1->covariance(2,2));
+           sigma_tk1_vtx = fabs(dz_pv_11)/dzError0_;
+
+           double dzError1_ = theTk1->dzError();
+           dzError1_ = sqrt(dzError1_*dzError1_+ thePV_dz1->covariance(2,2));
+           sigma_tk2_vtx = fabs(dz_pv_12)/dzError1_;
+           
+           tk1_chi2 = theTk0->normalizedChi2();
+           tk2_chi2 = theTk1->normalizedChi2();
+
+           tk1_ndof = theTk0->ndof();
+           tk2_ndof = theTk1->ndof();
  
            dPhiTvx  = ThePhoton->userFloat("dPhiTvx");
            vtxChi2  = ThePhoton->userFloat("vtxChi2");
