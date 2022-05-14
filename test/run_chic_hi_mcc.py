@@ -1,7 +1,8 @@
 # cfg for running on AOD
 
-input_filename = '/store/hidata/PARun2016C/PADoubleMuon/AOD/PromptReco-v1/000/285/505/00000/18609D6A-4CAF-E611-AA50-02163E01184F.root'
-ouput_filename = 'rootuple_chic_hi.root'
+input_filename = '/store/group/phys_heavyions/okukral/pPb/Chi_c_pPb8TeV_MC_RECO_v9/Chi_c_pPb8TeV_privateMC_GEN/Chi_c_pPb8TeV_MC_RECO_v9/211105_011026/0000/ChiCJpsiMuMu_Pythia8_8p16TeV_TuneCUETP8M1_RECO_1.root'
+
+ouput_filename = 'rootuple_chic_hi_mc.root'
 
 import FWCore.ParameterSet.Config as cms
 process = cms.Process("Rootuple")
@@ -12,7 +13,7 @@ process.load('Configuration.StandardSequences.Reconstruction_cff')
 
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff')
 from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_Prompt_v15', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '80X_mcRun2_pA_v4','')
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 10000
@@ -23,11 +24,10 @@ process.source       = cms.Source("PoolSource",fileNames = cms.untracked.vstring
 process.TFileService = cms.Service("TFileService",fileName = cms.string(ouput_filename))
 process.options      = cms.untracked.PSet( wantSummary = cms.untracked.bool(True))
 
-
 process.load('HeavyIonsAnalysis.Configuration.hfCoincFilter_cff')
 process.primaryVertexFilterPA = cms.EDFilter("VertexSelector",
     src = cms.InputTag("offlinePrimaryVertices"),
-    cut = cms.string("!isFake && abs(z) <= 50 && position.Rho <= 2 && tracksSize >= 2"),
+    cut = cms.string("!isFake && abs(z) <= 25 && position.Rho <= 2 && tracksSize >= 2"),
     filter = cms.bool(True),
 )
 process.noScraping = cms.EDFilter("FilterOutScraping",
@@ -36,42 +36,6 @@ process.noScraping = cms.EDFilter("FilterOutScraping",
     numtrack = cms.untracked.uint32(10),
     thresh = cms.untracked.double(0.25)
 )
-
-
-'''
-# get patmuons, no trigger info
-import PhysicsTools.PatAlgos.producersLayer1.muonProducer_cfi
-process.oniaPATMuonsWithoutTrigger = PhysicsTools.PatAlgos.producersLayer1.muonProducer_cfi.patMuons.clone(
-    muonSource = 'muons',
-    embedTrack          = True,
-    embedCombinedMuon   = True,
-    embedStandAloneMuon = True,
-    embedPFCandidate    = False,
-    embedCaloMETMuonCorrs = cms.bool(False),
-    embedTcMETMuonCorrs   = cms.bool(False),
-    embedPfEcalEnergy     = cms.bool(False),
-    embedPickyMuon = False,
-    embedTpfmsMuon = False,
-    userIsolation = cms.PSet(),   # no extra isolation beyond what's in reco::Muon itself
-    isoDeposits = cms.PSet(),     # no heavy isodeposits
-    addGenMatch = False,          # no mc
-)
-
-# select soft-patmuons
-process.selectedMuons = cms.EDFilter('PATMuonSelector',
-   src = cms.InputTag('oniaPATMuonsWithoutTrigger'),
-   cut = cms.string('muonID(\"TMOneStationTight\")'
-            ' && abs(innerTrack.dxy) < 0.3'
-            ' && abs(innerTrack.dz)  < 20.'
-            ' && innerTrack.hitPattern.trackerLayersWithMeasurement > 5'
-            ' && innerTrack.hitPattern.pixelLayersWithMeasurement > 0'
-            ' && innerTrack.quality(\"highPurity\")'
-            ' && (abs(eta) <= 2.4 && pt > 1.3)'
-   ),
-   filter = cms.bool(True)
-)
-
-'''
 
 ## ==== Trigger matching
 process.load("MuonAnalysis.MuonAssociators.patMuonsWithTrigger_cff")
@@ -87,8 +51,6 @@ process.muonMatchHLTL2.maxDeltaR = 0.3
 process.muonMatchHLTL2.maxDPtRel = 10.0
 process.muonMatchHLTL3.maxDeltaR = 0.1
 process.muonMatchHLTL3.maxDPtRel = 10.0
-## For trigger muons
-#switchOffAmbiguityResolution(process) # Switch off ambiguity resolution: allow multiple reco muons to match to the same trigger muon
 
 ## For L1 muons
 addHLTL1Passthrough(process)
@@ -109,36 +71,10 @@ process.selectedMuons = cms.EDFilter('PATMuonSelector',
             ' && innerTrack.hitPattern.trackerLayersWithMeasurement > 5'
             ' && innerTrack.hitPattern.pixelLayersWithMeasurement > 0'
             ' && innerTrack.quality(\"highPurity\")'
-            ' && ((abs(eta) <= 0.9 && pt > 2.5) || (0.9 < abs(eta) <= 2.4 && pt > 0.7))'
+            ' && ((abs(eta) <= 0.9 && pt > 2.5) || (0.9 < abs(eta) <= 2.4 && pt > 1.0))'
    ),
    filter = cms.bool(True)
 )
-
-
-'''
-process.triggerSelection = cms.EDFilter("TriggerResultsFilter",
-   triggerConditions = cms.vstring(
-   'HLT_PAL1DoubleMu0_v*',
-   'HLT_PAL1DoubleMuOpen_v*',
-   'HLT_PAL2DoubleMu0_v*',
-   'HLT_PAL3DoubleMu0_v*',
-   'HLT_PAFullTracks_Multiplicity120_v*',
-   'HLT_PAFullTracks_Multiplicity150_v*',
-   'HLT_PAFullTracks_Multiplicity185_part1_v*',
-   'HLT_PAFullTracks_Multiplicity185_part2_v*',
-   'HLT_PAFullTracks_Multiplicity185_part3_v*',
-   'HLT_PAFullTracks_Multiplicity185_part4_v*',
-   'HLT_PAFullTracks_Multiplicity185_part5_v*',
-   'HLT_PAFullTracks_Multiplicity185_part6_v*',
-   'HLT_PAFullTracks_Multiplicity220_v*',
-   'HLT_PAFullTracks_Multiplicity250_v*',
-   'HLT_PAFullTracks_Multiplicity280_v*'
-   ),
-   hltResults = cms.InputTag( "TriggerResults", "", "HLT" ),
-   l1tResults = cms.InputTag( "gtStage2Digis" ),
-   throw = cms.bool(False)
-)
-'''
 
 ### Trigger selection
 process.load("HLTrigger.HLTfilters.triggerResultsFilter_cfi")
@@ -154,15 +90,16 @@ process.load("HeavyFlavorAnalysis.Onia2MuMu.onia2MuMuPAT_cfi")
 process.onia2MuMuPAT.muons=cms.InputTag('selectedMuons')
 process.onia2MuMuPAT.primaryVertexTag=cms.InputTag('offlinePrimaryVertices')
 process.onia2MuMuPAT.beamSpotTag=cms.InputTag('offlineBeamSpot')
-process.onia2MuMuPAT.higherPuritySelection=cms.string("isGlobalMuon")
+process.onia2MuMuPAT.higherPuritySelection=cms.string("isTrackerMuon")
 process.onia2MuMuPAT.lowerPuritySelection=cms.string("isTrackerMuon")
-process.onia2MuMuPAT.dimuonSelection=cms.string("mass > 2.0 && mass < 5.0  && abs(daughter('muon1').innerTrack.dz - daughter('muon2').innerTrack.dz) < 25")
+process.onia2MuMuPAT.dimuonSelection=cms.string("mass > 2.0 && abs(daughter('muon1').innerTrack.dz - daughter('muon2').innerTrack.dz) < 25 && pt>5.0")
 process.onia2MuMuPAT.addMCTruth = cms.bool(False)
+process.onia2MuMuPAT.resolvePileUpAmbiguity = cms.bool(True)
 
 process.Onia2MuMuFiltered = cms.EDProducer('DiMuonFilter',
       OniaTag             = cms.InputTag("onia2MuMuPAT"),
       singlemuonSelection = cms.string(""),
-      dimuonSelection     = cms.string("2.7 < mass && mass < 3.5 && pt > 0. && charge==0 && userFloat('vProb') > 0.01"),
+      dimuonSelection     = cms.string("2.0 < mass && pt > 3. && charge==0 && userFloat('vProb') > 0.0"),
       do_trigger_match    = cms.bool(True),
       HLTFilters          = cms.vstring(
    'HLT_PAL1DoubleMu0_v*',
@@ -171,6 +108,7 @@ process.Onia2MuMuFiltered = cms.EDProducer('DiMuonFilter',
    'HLT_PAL3DoubleMu0_v*'
       ),
 )
+
 
 process.DiMuonCounter = cms.EDFilter('CandViewCountFilter',
     src       = cms.InputTag("Onia2MuMuFiltered"),
@@ -187,7 +125,7 @@ process.chiProducer = cms.EDProducer('OniaPhotonProducer',
     dimuons         = cms.InputTag("Onia2MuMuFiltered"),
     pi0OnlineSwitch = cms.bool(False),
     deltaMass       = cms.vdouble(0.0,2.0),
-    dzmax           = cms.double(0.5),
+    dzmax           = cms.double(99.),
     triggerMatch    = cms.bool(False)  # trigger match is performed in Onia2MuMuFiltered
 )
 
@@ -217,7 +155,8 @@ process.rootuple = cms.EDAnalyzer('HIchicRootupler',
                           primaryVertices = cms.InputTag("offlinePrimaryVertices"),
                           TriggerResults  = cms.InputTag("TriggerResults", "", "HLT"),
 			  beamSpotTag = cms.InputTag('offlineBeamSpot'),
-                          isMC = cms.bool(False),
+                          isMC = cms.bool(True),
+                          only_best =  cms.bool(False),
                           FilterNames = cms.vstring(
    'HLT_PAL1DoubleMu0',
    'HLT_PAL1DoubleMuOpen',
